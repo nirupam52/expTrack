@@ -37,6 +37,10 @@ public class UserAccount {
 		return email;
 	}
 
+	public Integer getId() {
+		return id;
+	}
+
 	public String getPasswordHash() {
 		return passwordHash;
 	}
