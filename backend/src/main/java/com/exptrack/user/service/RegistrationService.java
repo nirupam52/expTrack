@@ -37,7 +37,7 @@ public class RegistrationService {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password must be at least 12 characters");
 		}
 		if (users.existsByEmailIgnoreCase(email)) {
-			throw new ResponseStatusException(HttpStatus.CONFLICT, "Email is already registered");
+			return;
 		}
 		try {
 			UserAccount user = users.saveAndFlush(new UserAccount(email, passwordEncoder.encode(request.password()), currency));
@@ -45,7 +45,7 @@ public class RegistrationService {
 					.map(name -> new Category(user.getId(), name))
 					.toList());
 		} catch (DataIntegrityViolationException exception) {
-			throw new ResponseStatusException(HttpStatus.CONFLICT, "Email is already registered");
+			return;
 		}
 	}
 

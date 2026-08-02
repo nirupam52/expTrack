@@ -1,8 +1,6 @@
 services:
   backend:
     build: ./backend
-    environment:
-      EXPTRACK_SESSION_COOKIE_SECURE: "false"
     ports:
       - "8080:8080"
     volumes:

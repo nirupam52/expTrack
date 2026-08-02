@@ -31,7 +31,7 @@ class RegistrationEndpointTest {
 	void visitorCanRegisterAnAccountWithValidDetails() throws Exception {
 		assertThat(register("ava@example.com", "correct-horse-battery-staple", "USD").statusCode()).isEqualTo(HttpStatus.CREATED.value());
 		browser = newBrowser();
-		assertThat(register("ava@example.com", "correct-horse-battery-staple", "USD").statusCode()).isEqualTo(HttpStatus.CONFLICT.value());
+		assertThat(register("ava@example.com", "correct-horse-battery-staple", "USD").statusCode()).isEqualTo(HttpStatus.CREATED.value());
 		assertThat(register("not-an-email", "correct-horse-battery-staple", "USD").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 		assertThat(register("cam@example.com", "short", "USD").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 		assertThat(register("dan@example.com", "correct-horse-battery-staple", "invalid").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());

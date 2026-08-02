@@ -33,4 +33,18 @@ class AuthRateLimitTest {
 
 		assertThat(limited.statusCode()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS.value());
 	}
+
+	@Test
+	void signInAttemptsAreRateLimitedPerClient() throws Exception {
+		HttpClient client = HttpClient.newHttpClient();
+		HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/auth/login"))
+				.header("Content-Type", "application/x-www-form-urlencoded")
+				.POST(HttpRequest.BodyPublishers.ofString("username=nope@example.com&password=wrong-password"))
+				.build();
+
+		client.send(request, HttpResponse.BodyHandlers.discarding());
+		HttpResponse<Void> limited = client.send(request, HttpResponse.BodyHandlers.discarding());
+
+		assertThat(limited.statusCode()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS.value());
+	}
 }
