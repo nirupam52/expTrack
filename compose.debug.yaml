@@ -1,0 +1,40 @@
+services:
+  backend:
+    image: exptrack-backend-debug
+    build:
+      context: ./backend
+      target: development
+    command:
+      - mvn
+      - spring-boot:run
+      - "-Dspring-boot.run.jvmArguments=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
+    environment:
+      EXPTRACK_SESSION_COOKIE_SECURE: "false"
+    ports:
+      - "5005:5005"
+    volumes:
+      - ./backend:/app
+      - maven-cache:/root/.m2
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./backend/src
+          target: /app/src
+        - action: rebuild
+          path: ./backend/pom.xml
+
+  frontend:
+    image: exptrack-frontend-debug
+    build:
+      context: ./frontend
+      target: development
+    command: npm run dev -- --host 0.0.0.0 --port 80
+    environment:
+      CHOKIDAR_USEPOLLING: "true"
+    volumes:
+      - ./frontend:/app
+      - frontend-node-modules:/app/node_modules
+
+volumes:
+  frontend-node-modules:
+  maven-cache:

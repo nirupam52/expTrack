@@ -1,0 +1,9 @@
+.git
+.gitignore
+target
+*.db
+.idea
+.vscode
+.codex
+.claude
+.agents
