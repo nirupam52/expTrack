@@ -26,7 +26,7 @@ class HealthEndpointTest {
 		ResponseEntity<String> response = new TestRestTemplate()
 				.getForEntity("http://localhost:" + port + "/actuator/health", String.class);
 
-		assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("1");
+		assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("2");
 		assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
 		assertThat(response.getBody()).contains("\"status\":\"UP\"");
 	}
