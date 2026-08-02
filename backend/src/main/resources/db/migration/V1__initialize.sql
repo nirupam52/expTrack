@@ -1,0 +1,1 @@
+-- Bootstrap migration. Domain tables are introduced with their respective features.
