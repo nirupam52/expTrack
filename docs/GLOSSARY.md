@@ -14,7 +14,7 @@ A recorded monetary outflow owned by one user, with a title, amount, category, d
 
 ## Category
 
-A user-owned label used to organize that user's expenses. New accounts receive a small editable starter set.
+A fixed backend label used to organize expenses. Users cannot create, rename, or delete categories.
 
 ## Group
 

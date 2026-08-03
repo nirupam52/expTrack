@@ -61,7 +61,9 @@ class RegistrationEndpointTest {
 		JsonNode body = json.readTree(session.body());
 		assertThat(body.get("email").asText()).isEqualTo("bea@example.com");
 		assertThat(categories.statusCode()).isEqualTo(HttpStatus.OK.value());
-		assertThat(categories.body()).contains("Restaurants", "Food", "Gas", "Groceries", "Entertainment");
+		assertThat(json.readTree(categories.body()).findValuesAsText("name")).containsExactly(
+				"Dining", "Education", "Entertainment", "Fuel", "Gifts & Donations", "Groceries", "Healthcare", "Housing",
+				"Insurance", "Other", "Personal Care", "Shopping", "Subscriptions", "Transportation", "Travel", "Utilities");
 	}
 
 	@Test

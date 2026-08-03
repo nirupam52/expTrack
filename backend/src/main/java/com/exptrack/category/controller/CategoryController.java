@@ -1,6 +1,5 @@
 package com.exptrack.category.controller;
 
-import java.security.Principal;
 import java.util.List;
 
 import com.exptrack.category.dto.CategoryResponse;
@@ -20,7 +19,7 @@ public class CategoryController {
 	}
 
 	@GetMapping
-	List<CategoryResponse> list(Principal principal) {
-		return categories.list(principal.getName());
+	List<CategoryResponse> list() {
+		return categories.list();
 	}
 }

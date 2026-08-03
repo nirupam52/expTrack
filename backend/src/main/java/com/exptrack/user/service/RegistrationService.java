@@ -1,11 +1,8 @@
 package com.exptrack.user.service;
 
 import java.util.Currency;
-import java.util.List;
 import java.util.Locale;
 
-import com.exptrack.category.entity.Category;
-import com.exptrack.category.repository.CategoryRepository;
 import com.exptrack.user.dto.RegistrationRequest;
 import com.exptrack.user.entity.UserAccount;
 import com.exptrack.user.repository.UserAccountRepository;
@@ -20,12 +17,10 @@ import org.springframework.web.server.ResponseStatusException;
 public class RegistrationService {
 
 	private final UserAccountRepository users;
-	private final CategoryRepository categories;
 	private final PasswordEncoder passwordEncoder;
 
-	public RegistrationService(UserAccountRepository users, CategoryRepository categories, PasswordEncoder passwordEncoder) {
+	public RegistrationService(UserAccountRepository users, PasswordEncoder passwordEncoder) {
 		this.users = users;
-		this.categories = categories;
 		this.passwordEncoder = passwordEncoder;
 	}
 
@@ -40,10 +35,7 @@ public class RegistrationService {
 			return;
 		}
 		try {
-			UserAccount user = users.saveAndFlush(new UserAccount(email, passwordEncoder.encode(request.password()), currency));
-			categories.saveAll(List.of("Restaurants", "Food", "Gas", "Groceries", "Entertainment").stream()
-					.map(name -> new Category(user.getId(), name))
-					.toList());
+			users.saveAndFlush(new UserAccount(email, passwordEncoder.encode(request.password()), currency));
 		} catch (DataIntegrityViolationException exception) {
 			return;
 		}
