@@ -11,6 +11,7 @@ You are building a production-quality personal expense tracker.
 5. Visual polish
 
 ## Coding Standards
+- Always follow industry best practices and the idiomatic conventions of the language and framework in use.
 - Follow existing project structure.
 - Keep functions focused.
 - Write readable code.
