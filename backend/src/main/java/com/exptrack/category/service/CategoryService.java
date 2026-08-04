@@ -8,27 +8,25 @@ import org.springframework.stereotype.Service;
 @Service
 public class CategoryService {
 
-	private static final List<String> NAMES = List.of(
-			"Dining",
-			"Education",
-			"Entertainment",
-			"Fuel",
-			"Gifts & Donations",
-			"Groceries",
-			"Healthcare",
-			"Housing",
-			"Insurance",
-			"Other",
-			"Personal Care",
-			"Shopping",
-			"Subscriptions",
-			"Transportation",
-			"Travel",
-			"Utilities");
+	private static final List<CategoryResponse> CATEGORIES = List.of(
+			new CategoryResponse("Dining"),
+			new CategoryResponse("Education"),
+			new CategoryResponse("Entertainment"),
+			new CategoryResponse("Fuel"),
+			new CategoryResponse("Gifts & Donations"),
+			new CategoryResponse("Groceries"),
+			new CategoryResponse("Healthcare"),
+			new CategoryResponse("Housing"),
+			new CategoryResponse("Insurance"),
+			new CategoryResponse("Other"),
+			new CategoryResponse("Personal Care"),
+			new CategoryResponse("Shopping"),
+			new CategoryResponse("Subscriptions"),
+			new CategoryResponse("Transportation"),
+			new CategoryResponse("Travel"),
+			new CategoryResponse("Utilities"));
 
 	public List<CategoryResponse> list() {
-		return NAMES.stream()
-				.map(CategoryResponse::new)
-				.toList();
+		return CATEGORIES;
 	}
 }
