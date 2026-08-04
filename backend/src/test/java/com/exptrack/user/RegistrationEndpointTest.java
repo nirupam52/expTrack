@@ -18,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(
 		webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-		properties = {"spring.datasource.url=jdbc:sqlite::memory:", "server.servlet.session.cookie.secure=false"})
+		properties = {"spring.datasource.url=jdbc:sqlite::memory:", "server.servlet.session.cookie.secure=false", "exptrack.auth.max-attempts=100"})
 class RegistrationEndpointTest {
 
 	@LocalServerPort
@@ -33,7 +33,10 @@ class RegistrationEndpointTest {
 		browser = newBrowser();
 		assertThat(register("ava@example.com", "correct-horse-battery-staple", "USD").statusCode()).isEqualTo(HttpStatus.CREATED.value());
 		assertThat(register("not-an-email", "correct-horse-battery-staple", "USD").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+		assertThat(register("ava@", "correct-horse-battery-staple", "USD").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 		assertThat(register("cam@example.com", "short", "USD").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+		assertThat(register("cam@example.com", "            ", "USD").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+		assertThat(register("cam@example.com", "correct-horse-battery-staple", "").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 		assertThat(register("dan@example.com", "correct-horse-battery-staple", "invalid").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 	}
 

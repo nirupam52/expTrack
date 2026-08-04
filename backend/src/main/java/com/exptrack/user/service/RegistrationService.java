@@ -28,9 +28,6 @@ public class RegistrationService {
 	public void register(RegistrationRequest request) {
 		String email = normalizeEmail(request.email());
 		String currency = currency(request.defaultCurrency());
-		if (request.password() == null || request.password().length() < 12) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password must be at least 12 characters");
-		}
 		if (users.existsByEmailIgnoreCase(email)) {
 			return;
 		}
@@ -42,14 +39,7 @@ public class RegistrationService {
 	}
 
 	private String normalizeEmail(String email) {
-		if (email == null) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email is required");
-		}
-		String normalized = email.trim().toLowerCase(Locale.ROOT);
-		if (normalized.length() > 254 || !normalized.contains("@")) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email is invalid");
-		}
-		return normalized;
+		return email.trim().toLowerCase(Locale.ROOT);
 	}
 
 	private String currency(String value) {

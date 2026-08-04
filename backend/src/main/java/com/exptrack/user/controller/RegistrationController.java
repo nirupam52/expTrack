@@ -2,6 +2,7 @@ package com.exptrack.user.controller;
 
 import com.exptrack.user.dto.RegistrationRequest;
 import com.exptrack.user.service.RegistrationService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -21,7 +22,7 @@ public class RegistrationController {
 
 	@PostMapping("/register")
 	@ResponseStatus(HttpStatus.CREATED)
-	void register(@RequestBody RegistrationRequest request) {
+	void register(@Valid @RequestBody RegistrationRequest request) {
 		registrationService.register(request);
 	}
 }
