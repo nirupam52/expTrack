@@ -44,4 +44,8 @@ public class UserAccount {
 	public String getPasswordHash() {
 		return passwordHash;
 	}
+
+	public String getDefaultCurrency() {
+		return defaultCurrency;
+	}
 }

@@ -29,4 +29,8 @@ public class CategoryService {
 	public List<CategoryResponse> list() {
 		return CATEGORIES;
 	}
+
+	public boolean isValid(String name) {
+		return CATEGORIES.contains(new CategoryResponse(name));
+	}
 }
