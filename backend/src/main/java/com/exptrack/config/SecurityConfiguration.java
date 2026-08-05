@@ -23,7 +23,7 @@ class SecurityConfiguration {
 		RequestMatcher apiRequests = request -> request.getRequestURI().startsWith("/api/");
 		return http.addFilterBefore(authRateLimitFilter, CsrfFilter.class)
 				.authorizeHttpRequests(authorize -> authorize
-				.requestMatchers("/actuator/health", "/api/auth/register", "/api/auth/csrf", "/error").permitAll()
+				.requestMatchers("/", "/index.html", "/robots.txt", "/_app/**", "/actuator/health", "/api/auth/register", "/api/auth/csrf", "/error").permitAll()
 				.anyRequest().authenticated())
 				.csrf(csrf -> csrf.csrfTokenRepository(new HttpSessionCsrfTokenRepository())
 						.csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler()))
@@ -33,7 +33,7 @@ class SecurityConfiguration {
 						.successHandler((request, response, authentication) -> response.setStatus(HttpStatus.NO_CONTENT.value()))
 						.failureHandler((request, response, exception) -> response.sendError(HttpStatus.UNAUTHORIZED.value()))
 						.permitAll())
-				.logout(logout -> logout.logoutUrl("/api/auth/logout")
+		.logout(logout -> logout.logoutUrl("/api/auth/logout")
 						.logoutSuccessHandler((request, response, authentication) -> response.setStatus(HttpStatus.NO_CONTENT.value())))
 				.build();
 	}
