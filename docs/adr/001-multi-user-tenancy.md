@@ -10,7 +10,7 @@ A deployment may be hosted by one person but used by their friends, like a small
 
 ## Decision
 
-The application supports multiple independent user accounts. Expenses, categories, and all future personal financial data belong to one user and must be authorized against that user on every request.
+The application supports multiple independent user accounts. Expenses and all future personal financial data belong to one user and must be authorized against that user on every request. The fixed category taxonomy is application configuration, not personal data.
 
 Sharing expenses between users is not part of the initial model; it remains a future groups feature.
 

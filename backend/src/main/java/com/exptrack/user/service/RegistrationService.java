@@ -1,0 +1,52 @@
+package com.exptrack.user.service;
+
+import java.util.Currency;
+import java.util.Locale;
+
+import com.exptrack.user.dto.RegistrationRequest;
+import com.exptrack.user.entity.UserAccount;
+import com.exptrack.user.repository.UserAccountRepository;
+import org.springframework.http.HttpStatus;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
+@Service
+public class RegistrationService {
+
+	private final UserAccountRepository users;
+	private final PasswordEncoder passwordEncoder;
+
+	public RegistrationService(UserAccountRepository users, PasswordEncoder passwordEncoder) {
+		this.users = users;
+		this.passwordEncoder = passwordEncoder;
+	}
+
+	@Transactional
+	public void register(RegistrationRequest request) {
+		String email = normalizeEmail(request.email());
+		String currency = currency(request.defaultCurrency());
+		if (users.existsByEmailIgnoreCase(email)) {
+			return;
+		}
+		try {
+			users.saveAndFlush(new UserAccount(email, passwordEncoder.encode(request.password()), currency));
+		} catch (DataIntegrityViolationException exception) {
+			return;
+		}
+	}
+
+	private String normalizeEmail(String email) {
+		return email.trim().toLowerCase(Locale.ROOT);
+	}
+
+	private String currency(String value) {
+		try {
+			return Currency.getInstance(value).getCurrencyCode();
+		} catch (IllegalArgumentException | NullPointerException exception) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Currency is invalid");
+		}
+	}
+}
