@@ -37,7 +37,7 @@ Deliver a mobile-friendly personal expense tracker. Visitors can create an accou
 - Keep the product a modular monolith with a SvelteKit browser client, Spring Boot REST API, and SQLite database. Do not add services, CQRS, event sourcing, or generic repositories.
 - Use email/password registration and sign-in. Store only strong password hashes; use secure, HttpOnly, server-side browser sessions with CSRF protection for state-changing requests.
 - Derive the current user exclusively from the authenticated session. No request may select an expense or other owner by client-supplied owner ID.
-- Model expenses as user-owned records containing title, positive amount, category, date, recorded currency, and optional short note. The owner is immutable.
+- Model expenses as user-owned records containing title, a positive exact amount stored as integer minor units, category, date, recorded currency, and optional short note. The owner is immutable. Validate entered currency precision and never silently round an amount.
 - Define a fixed backend category taxonomy: Dining, Education, Entertainment, Fuel, Gifts & Donations, Groceries, Healthcare, Housing, Insurance, Other, Personal Care, Shopping, Subscriptions, Transportation, Travel, and Utilities.
 - Store the user's default currency separately from each expense. A setting change supplies the currency for future entries only; it never rewrites historical records.
 - Provide fixed category retrieval and personal expense CRUD, focused list retrieval with text, date-range, and category filters, and a current-month dashboard summary.
@@ -49,7 +49,7 @@ Deliver a mobile-friendly personal expense tracker. Visitors can create an accou
 - Test externally observable behavior at the REST boundary rather than service internals or component implementation details.
 - Cover registration, sign-in, sign-out, unauthenticated access, session protection, CSRF handling, and generic authentication failures.
 - Cover owner isolation for every expense, list, search, filter, dashboard, update, and delete operation.
-- Cover expense validation: required title/category/date, positive amount, valid fixed category, optional note, and persisted recorded currency.
+- Cover expense validation: required title/category/date, positive exact minor-unit amount, valid precision for the recorded currency, valid fixed category, optional note, and persisted recorded currency.
 - Cover fixed category retrieval.
 - Cover expense create/edit/permanent delete behavior, including the UI confirmation before deletion where browser-level tests exist.
 - Cover filtering and search via the list endpoint, plus current-month totals, category breakdown, and recent expenses via the dashboard endpoint.
