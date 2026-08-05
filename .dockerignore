@@ -1,0 +1,10 @@
+.git
+.idea
+.vscode
+.codex
+.agents
+frontend/node_modules
+frontend/.svelte-kit
+frontend/build
+backend/target
+backend/*.db
