@@ -67,7 +67,7 @@ public class ExpenseService {
 	}
 
 	private ExpenseResponse response(Expense expense) {
-		return new ExpenseResponse(expense.getId(), expense.getTitle(), expense.getAmountMinor(), expense.getCategoryId(),
+		return new ExpenseResponse(expense.getId(), expense.getTitle(), Long.toString(expense.getAmountMinor()), expense.getCategoryId(),
 				expense.getExpenseDate(), expense.getCurrency(), expense.getNote());
 	}
 }

@@ -1,1 +1,36 @@
 @import 'tailwindcss';
+
+* { box-sizing: border-box; }
+body { margin: 0; background: #edf3f2; color: #183034; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+.app button, .app input, .app select { font: inherit; }
+.app { width: min(100% - 2rem, 42rem); margin: auto; padding: 1.25rem 0 3rem; }
+.app header, .app .heading, .app li { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+.app header { border-bottom: 1px solid #c7d7d5; padding-bottom: 1rem; }
+.app .brand { color: inherit; font-size: 1.25rem; font-weight: 800; letter-spacing: -.05em; text-decoration: none; }
+.app .auth, .app .ledger, .app .recent { margin-top: 2rem; }
+.app .auth { max-width: 30rem; }
+.app .eyebrow { color: #477176; font-size: .73rem; font-weight: 800; letter-spacing: .12em; margin: 0 0 .45rem; text-transform: uppercase; }
+.app h1, .app h2, .app p { margin-top: 0; }
+.app h1 { font-size: clamp(2.25rem, 10vw, 4rem); letter-spacing: -.06em; line-height: .94; margin-bottom: 1rem; }
+.app h2 { font-size: 1.3rem; letter-spacing: -.04em; margin-bottom: 0; }
+.app .intro, .app .empty, .app .heading > p { color: #537176; line-height: 1.5; }
+.app .form-stack { display: grid; gap: 1rem; margin-top: 1.75rem; }
+.app .field { display: grid; color: #35565a; font-size: .88rem; font-weight: 700; gap: .4rem; }
+.app .field span { font-weight: 400; }
+.app input, .app select { appearance: none; background: #fff; border: 1px solid #b9cecb; border-radius: .4rem; color: #183034; min-height: 2.9rem; padding: .65rem .75rem; width: 100%; }
+.app input:focus, .app select:focus, .app button:focus-visible { outline: 3px solid #76b8af; outline-offset: 2px; }
+.app .form-pair { display: grid; gap: 1rem; grid-template-columns: 1fr; }
+.app .primary { background: #0f6861; border: 0; border-radius: .4rem; color: white; cursor: pointer; font-weight: 800; min-height: 3rem; padding: .7rem 1rem; }
+.app .primary:disabled { cursor: wait; opacity: .65; }
+.app .quiet, .app .switch { background: none; border: 0; color: #0f6861; cursor: pointer; font-weight: 700; padding: .3rem 0; text-align: left; }
+.app .switch { margin-top: 1rem; }
+.app .error { color: #9a2e25; font-size: .9rem; margin: 0; }
+.app .recent { border-top: 1px solid #c7d7d5; padding-top: 1.5rem; }
+.app ul { list-style: none; margin: 1rem 0 0; padding: 0; }
+.app li { border-bottom: 1px solid #d3e0de; padding: .9rem 0; }
+.app li div { min-width: 0; }
+.app li strong, .app li span { display: block; }
+.app li span { color: #537176; font-size: .85rem; margin-top: .2rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app li b { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.app .status { color: #537176; margin-top: 3rem; }
+@media (min-width: 35rem) { .app .form-pair { grid-template-columns: 1fr 1fr; } }

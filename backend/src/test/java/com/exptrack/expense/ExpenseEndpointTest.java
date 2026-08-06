@@ -35,15 +35,17 @@ class ExpenseEndpointTest {
 	@Test
 	void signedInUserCanAddAnExactExpenseAndSeeOnlyTheirRecentExpenses() throws Exception {
 		registerAndSignIn("ava@example.com", "USD");
-		HttpResponse<String> created = create(Map.of("title", "Coffee", "amount", "12.34", "categoryId", 1, "date", "2026-08-04", "note", "With Sam"));
+		HttpResponse<String> created = create(Map.of("title", "Coffee", "amount", "92233720368547758.07", "categoryId", 1, "date", "2026-08-04", "note", "With Sam"));
 		HttpResponse<String> recent = browser.send(HttpRequest.newBuilder(URI.create(url("/api/expenses"))).GET().build(), HttpResponse.BodyHandlers.ofString());
 		HttpClient otherBrowser = newBrowser();
 		registerAndSignIn(otherBrowser, "bea@example.com", "USD");
 		HttpResponse<String> otherRecent = otherBrowser.send(HttpRequest.newBuilder(URI.create(url("/api/expenses"))).GET().build(), HttpResponse.BodyHandlers.ofString());
 
 		assertThat(created.statusCode()).isEqualTo(HttpStatus.CREATED.value());
-		assertThat(json.readTree(created.body()).get("amountMinor").asLong()).isEqualTo(1234);
-		assertThat(json.readTree(created.body()).get("categoryId").asInt()).isEqualTo(1);
+		JsonNode createdExpense = json.readTree(created.body());
+		assertThat(createdExpense.get("amountMinor").isTextual()).isTrue();
+		assertThat(createdExpense.get("amountMinor").asText()).isEqualTo("9223372036854775807");
+		assertThat(createdExpense.get("categoryId").asInt()).isEqualTo(1);
 		assertThat(jdbc.queryForObject("SELECT category_id FROM expenses WHERE title = ?", Integer.class, "Coffee")).isEqualTo(1);
 		assertThat(recent.statusCode()).isEqualTo(HttpStatus.OK.value());
 		assertThat(json.readTree(recent.body()).get(0).get("title").asText()).isEqualTo("Coffee");
