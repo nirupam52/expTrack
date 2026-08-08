@@ -1,12 +1,13 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 
-	type Category = { name: string };
+	type Category = { id: number; name: string };
 	type Session = { email: string; defaultCurrency: string };
-	type Expense = { id: number; title: string; amountMinor: number; category: string; date: string; currency: string; note: string | null };
+	type Expense = { id: number; title: string; amountMinor: number; categoryId: number; date: string; currency: string; note: string | null };
 
 	let session = $state<Session | null>(null);
 	let categories = $state<Category[]>([]);
+	let categoryNames = $derived(new Map(categories.map((item) => [item.id, item.name])));
 	let expenses = $state<Expense[]>([]);
 	let mode = $state<'sign-in' | 'register'>('sign-in');
 	let loading = $state(true);
@@ -17,7 +18,7 @@
 	let defaultCurrency = $state('USD');
 	let title = $state('');
 	let amount = $state('');
-	let category = $state('');
+	let category = $state<number | null>(null);
 	let date = $state(today());
 	let note = $state('');
 
@@ -51,7 +52,7 @@
 
 	async function loadExpenses() {
 		[expenses, categories] = await Promise.all([fetchJson<Expense[]>('/api/expenses'), fetchJson<Category[]>('/api/categories')]);
-		category ||= categories[0]?.name ?? '';
+		category ??= categories[0]?.id ?? null;
 	}
 
 	async function authenticate() {
@@ -74,7 +75,7 @@
 		error = '';
 		submitting = true;
 		try {
-			const created = await send<Expense>('/api/expenses', { title, amount, category, date, note });
+			const created = await send<Expense>('/api/expenses', { title, amount, categoryId: category, date, note });
 			expenses = [created, ...expenses].slice(0, 10);
 			title = '';
 			amount = '';
@@ -107,6 +108,10 @@
 	function formattedAmount(expense: Expense) {
 		const fractionDigits = new Intl.NumberFormat(undefined, { style: 'currency', currency: expense.currency }).resolvedOptions().maximumFractionDigits ?? 2;
 		return new Intl.NumberFormat(undefined, { style: 'currency', currency: expense.currency }).format(expense.amountMinor / 10 ** fractionDigits);
+	}
+
+	function categoryName(categoryId: number) {
+		return categoryNames.get(categoryId) ?? 'Unknown category';
 	}
 </script>
 
@@ -141,7 +146,7 @@
 			<div class="heading"><div><p class="eyebrow">Your ledger</p><h1 id="add-expense-title">Add an expense</h1></div><p>{session.defaultCurrency}</p></div>
 			<form class="expense-form" onsubmit={(event) => { event.preventDefault(); addExpense(); }}>
 				<label>What was it?<input bind:value={title} maxlength="120" placeholder="Coffee" autocomplete="off" required /></label>
-				<div class="pair"><label>Amount<input bind:value={amount} inputmode="decimal" placeholder="12.34" required /></label><label>Category<select bind:value={category} required>{#each categories as item}<option value={item.name}>{item.name}</option>{/each}</select></label></div>
+				<div class="pair"><label>Amount<input bind:value={amount} inputmode="decimal" placeholder="12.34" required /></label><label>Category<select bind:value={category} required>{#each categories as item}<option value={item.id}>{item.name}</option>{/each}</select></label></div>
 				<div class="pair"><label>Date<input bind:value={date} type="date" required /></label><label>Note <span>(optional)</span><input bind:value={note} maxlength="500" placeholder="Anything useful" /></label></div>
 				{#if error}<p class="error" role="alert">{error}</p>{/if}
 				<button class="primary" disabled={submitting}>{submitting ? 'Saving…' : 'Save expense'}</button>
@@ -150,7 +155,7 @@
 		<section class="recent" aria-labelledby="recent-title">
 			<div class="heading"><div><p class="eyebrow">Latest entries</p><h2 id="recent-title">Recently added</h2></div><p>{expenses.length}</p></div>
 			{#if expenses.length === 0}<p class="empty">Your first saved expense will appear here.</p>
-			{:else}<ul>{#each expenses as expense}<li><div><strong>{expense.title}</strong><span>{expense.category} · {expense.date}{#if expense.note} · {expense.note}{/if}</span></div><b>{formattedAmount(expense)}</b></li>{/each}</ul>{/if}
+			{:else}<ul>{#each expenses as expense}<li><div><strong>{expense.title}</strong><span>{categoryName(expense.categoryId)} · {expense.date}{#if expense.note} · {expense.note}{/if}</span></div><b>{formattedAmount(expense)}</b></li>{/each}</ul>{/if}
 		</section>
 	{/if}
 </main>

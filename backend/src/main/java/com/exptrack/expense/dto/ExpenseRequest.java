@@ -9,7 +9,7 @@ import jakarta.validation.constraints.Size;
 public record ExpenseRequest(
 		@NotBlank @Size(max = 120) String title,
 		@NotBlank @Size(max = 30) String amount,
-		@NotBlank String category,
+		@NotNull Integer categoryId,
 		@NotNull LocalDate date,
 		@Size(max = 500) String note) {
 }

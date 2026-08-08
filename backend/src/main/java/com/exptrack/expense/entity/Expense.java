@@ -26,8 +26,8 @@ public class Expense {
 	@Column(name = "amount_minor", nullable = false)
 	private long amountMinor;
 
-	@Column(nullable = false)
-	private String category;
+	@Column(name = "category_id", nullable = false)
+	private int categoryId;
 
 	@Column(name = "expense_date", nullable = false)
 	private LocalDate expenseDate;
@@ -40,11 +40,11 @@ public class Expense {
 	protected Expense() {
 	}
 
-	public Expense(Integer userId, String title, long amountMinor, String category, LocalDate expenseDate, String currency, String note) {
+	public Expense(Integer userId, String title, long amountMinor, int categoryId, LocalDate expenseDate, String currency, String note) {
 		this.userId = userId;
 		this.title = title;
 		this.amountMinor = amountMinor;
-		this.category = category;
+		this.categoryId = categoryId;
 		this.expenseDate = expenseDate;
 		this.currency = currency;
 		this.note = note;
@@ -62,8 +62,8 @@ public class Expense {
 		return amountMinor;
 	}
 
-	public String getCategory() {
-		return category;
+	public int getCategoryId() {
+		return categoryId;
 	}
 
 	public LocalDate getExpenseDate() {

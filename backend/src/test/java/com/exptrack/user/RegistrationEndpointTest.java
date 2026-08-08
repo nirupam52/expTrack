@@ -67,6 +67,8 @@ class RegistrationEndpointTest {
 		assertThat(json.readTree(categories.body()).findValuesAsText("name")).containsExactly(
 				"Dining", "Education", "Entertainment", "Fuel", "Gifts & Donations", "Groceries", "Healthcare", "Housing",
 				"Insurance", "Other", "Personal Care", "Shopping", "Subscriptions", "Transportation", "Travel", "Utilities");
+		assertThat(json.readTree(categories.body()).findValuesAsText("id")).containsExactly(
+				"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16");
 	}
 
 	@Test

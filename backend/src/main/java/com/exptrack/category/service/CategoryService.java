@@ -1,6 +1,7 @@
 package com.exptrack.category.service;
 
 import java.util.List;
+import java.util.Map;
 
 import com.exptrack.category.dto.CategoryResponse;
 import org.springframework.stereotype.Service;
@@ -8,29 +9,34 @@ import org.springframework.stereotype.Service;
 @Service
 public class CategoryService {
 
-	private static final List<CategoryResponse> CATEGORIES = List.of(
-			new CategoryResponse("Dining"),
-			new CategoryResponse("Education"),
-			new CategoryResponse("Entertainment"),
-			new CategoryResponse("Fuel"),
-			new CategoryResponse("Gifts & Donations"),
-			new CategoryResponse("Groceries"),
-			new CategoryResponse("Healthcare"),
-			new CategoryResponse("Housing"),
-			new CategoryResponse("Insurance"),
-			new CategoryResponse("Other"),
-			new CategoryResponse("Personal Care"),
-			new CategoryResponse("Shopping"),
-			new CategoryResponse("Subscriptions"),
-			new CategoryResponse("Transportation"),
-			new CategoryResponse("Travel"),
-			new CategoryResponse("Utilities"));
+	private static final Map<Integer, String> CATEGORIES = Map.ofEntries(
+			Map.entry(1, "Dining"),
+			Map.entry(2, "Education"),
+			Map.entry(3, "Entertainment"),
+			Map.entry(4, "Fuel"),
+			Map.entry(5, "Gifts & Donations"),
+			Map.entry(6, "Groceries"),
+			Map.entry(7, "Healthcare"),
+			Map.entry(8, "Housing"),
+			Map.entry(9, "Insurance"),
+			Map.entry(10, "Other"),
+			Map.entry(11, "Personal Care"),
+			Map.entry(12, "Shopping"),
+			Map.entry(13, "Subscriptions"),
+			Map.entry(14, "Transportation"),
+			Map.entry(15, "Travel"),
+			Map.entry(16, "Utilities"));
+
+	private static final List<CategoryResponse> RESPONSES = CATEGORIES.entrySet().stream()
+			.sorted(Map.Entry.comparingByKey())
+			.map(entry -> new CategoryResponse(entry.getKey(), entry.getValue()))
+			.toList();
 
 	public List<CategoryResponse> list() {
-		return CATEGORIES;
+		return RESPONSES;
 	}
 
-	public boolean isValid(String name) {
-		return CATEGORIES.contains(new CategoryResponse(name));
+	public boolean isValid(Integer id) {
+		return id != null && CATEGORIES.containsKey(id);
 	}
 }
