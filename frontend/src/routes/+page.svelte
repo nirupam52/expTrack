@@ -2,7 +2,17 @@
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
 	import { get, HttpError, post } from '$lib/api/client';
-	import type { AuthSubmission, Category, Expense, ExpenseDraft, Session } from '$lib/api/types';
+	import {
+		categoriesSchema,
+		expenseSchema,
+		expensesSchema,
+		sessionSchema,
+		type AuthSubmission,
+		type Category,
+		type Expense,
+		type ExpenseDraft,
+		type Session
+	} from '$lib/api/types';
 	import AuthForm from '$lib/components/AuthForm.svelte';
 	import ExpenseForm from '$lib/components/ExpenseForm.svelte';
 	import RecentExpenses from '$lib/components/RecentExpenses.svelte';
@@ -12,7 +22,7 @@
 	let expenses = $state.raw<Expense[]>([]);
 	let loading = $state(true);
 	let loadError = $state('');
-	let submitting = $state(false);
+	let signOutError = $state('');
 	let error = $state('');
 	let category = $state<number | null>(null);
 
@@ -23,30 +33,35 @@
 	async function loadSession() {
 		loading = true;
 		loadError = '';
-
 		try {
-			session = await get<Session>('/api/auth/session');
+			session = await get('/api/auth/session', sessionSchema);
 		} catch (cause) {
-			if (cause instanceof HttpError && cause.status === 401) {
-				session = null;
-			} else {
-				loadError = 'Unable to load your ledger. Please try again.';
-			}
-			loading = false;
+			handleSessionLoadError(cause);
 			return;
 		}
+		await loadLedger();
+		loading = false;
+	}
 
+	function handleSessionLoadError(cause: unknown) {
+		if (cause instanceof HttpError && cause.status === 401) session = null;
+		else loadError = 'Unable to load your ledger. Please try again.';
+		loading = false;
+	}
+
+	async function loadLedger() {
 		try {
 			await loadExpenses();
 		} catch {
 			loadError = 'Unable to load your ledger. Please try again.';
 		}
-
-		loading = false;
 	}
 
 	async function loadExpenses() {
-		[expenses, categories] = await Promise.all([get<Expense[]>('/api/expenses'), get<Category[]>('/api/categories')]);
+		[expenses, categories] = await Promise.all([
+			get('/api/expenses', expensesSchema),
+			get('/api/categories', categoriesSchema)
+		]);
 		category ??= categories[0]?.id ?? null;
 	}
 
@@ -70,7 +85,7 @@
 		error = '';
 		submitting = true;
 		try {
-			const created = await post<Expense>('/api/expenses', draft);
+			const created = await post('/api/expenses', draft, expenseSchema);
 			expenses = [created, ...expenses].slice(0, 10);
 			return true;
 		} catch (cause) {
@@ -84,9 +99,14 @@
 	}
 
 	async function signOut() {
-		await post('/api/auth/logout', null);
-		session = null;
-		expenses = [];
+		signOutError = '';
+		try {
+			await post('/api/auth/logout', null);
+			session = null;
+			expenses = [];
+		} catch {
+			signOutError = 'Could not sign out. Please try again.';
+		}
 	}
 
 </script>
@@ -96,7 +116,10 @@
 <main class="app">
 	<header>
 		<a class="brand" href={resolve('/')}>ExpTrack</a>
-		{#if session}<button class="quiet" onclick={signOut}>Sign out</button>{/if}
+		{#if session}
+			<button class="quiet" onclick={signOut}>Sign out</button>
+			{#if signOutError}<p class="error" role="alert">{signOutError}</p>{/if}
+		{/if}
 	</header>
 
 	{#if loading}

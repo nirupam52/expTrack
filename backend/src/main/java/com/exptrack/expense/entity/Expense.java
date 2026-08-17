@@ -40,14 +40,14 @@ public class Expense {
 	protected Expense() {
 	}
 
-	public Expense(Integer userId, String title, long amountMinor, int categoryId, LocalDate expenseDate, String currency, String note) {
+	public Expense(Integer userId, ExpenseDetails details) {
 		this.userId = userId;
-		this.title = title;
-		this.amountMinor = amountMinor;
-		this.categoryId = categoryId;
-		this.expenseDate = expenseDate;
-		this.currency = currency;
-		this.note = note;
+		this.title = details.title();
+		this.amountMinor = details.amountMinor();
+		this.categoryId = details.categoryId();
+		this.expenseDate = details.expenseDate();
+		this.currency = details.currency();
+		this.note = details.note();
 	}
 
 	public Integer getId() {

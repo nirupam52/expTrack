@@ -46,19 +46,60 @@ class ExpenseEndpointTest {
 		assertThat(createdExpense.get("amountMinor").isTextual()).isTrue();
 		assertThat(createdExpense.get("amountMinor").asText()).isEqualTo("9223372036854775807");
 		assertThat(createdExpense.get("categoryId").asInt()).isEqualTo(1);
+		assertThat(createdExpense.get("currency").asText()).isEqualTo("USD");
 		assertThat(jdbc.queryForObject("SELECT category_id FROM expenses WHERE title = ?", Integer.class, "Coffee")).isEqualTo(1);
+		assertThat(jdbc.queryForObject("SELECT currency FROM expenses WHERE title = ?", String.class, "Coffee")).isEqualTo("USD");
 		assertThat(recent.statusCode()).isEqualTo(HttpStatus.OK.value());
 		assertThat(json.readTree(recent.body()).get(0).get("title").asText()).isEqualTo("Coffee");
 		assertThat(json.readTree(otherRecent.body())).isEmpty();
 	}
 
 	@Test
-	void expenseRequiresAuthenticationCsrfValidDetailsAndCurrencyPrecision() throws Exception {
+	void expenseRejectsMissingOrBlankRequiredDetailsAndNonPositiveAmounts() throws Exception {
 		assertThat(create(Map.of("title", "Coffee", "amount", "12.34", "categoryId", 1, "date", "2026-08-04")).statusCode()).isEqualTo(HttpStatus.UNAUTHORIZED.value());
 		registerAndSignIn("bea@example.com", "USD");
+
 		assertThat(withoutCsrf(Map.of("title", "Coffee", "amount", "12.34", "categoryId", 1, "date", "2026-08-04")).statusCode()).isEqualTo(HttpStatus.FORBIDDEN.value());
+		assertThat(create(Map.of("title", "", "amount", "12.34", "categoryId", 1, "date", "2026-08-04")).statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+		assertThat(create(Map.of("title", " ", "amount", "12.34", "categoryId", 1, "date", "2026-08-04")).statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+		assertThat(create(Map.of("title", "Coffee", "amount", "", "categoryId", 1, "date", "2026-08-04")).statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+		assertThat(create(Map.of("title", "Coffee", "amount", "12.34", "categoryId", 1)).statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+		assertThat(create(Map.of("title", "Coffee", "amount", "12.34", "categoryId", 1, "date", "")).statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+		assertThat(create(Map.of("title", "Coffee", "amount", "0", "categoryId", 1, "date", "2026-08-04")).statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+		assertThat(create(Map.of("title", "Coffee", "amount", "-1", "categoryId", 1, "date", "2026-08-04")).statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 		assertThat(create(Map.of("title", "Coffee", "amount", "12.345", "categoryId", 1, "date", "2026-08-04")).statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 		assertThat(create(Map.of("title", "Coffee", "amount", "12.34", "categoryId", 99, "date", "2026-08-04")).statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+	}
+
+	@Test
+	void expenseSupportsThreeDecimalBhdAndOmitsOptionalNotes() throws Exception {
+		registerAndSignIn("cam@example.com", "BHD");
+		HttpResponse<String> bhd = create(Map.of("title", "Lunch", "amount", "12.345", "categoryId", 1, "date", "2026-08-04"));
+		HttpResponse<String> invalidBhd = create(Map.of("title", "Lunch", "amount", "12.3456", "categoryId", 1, "date", "2026-08-04"));
+
+		JsonNode bhdExpense = json.readTree(bhd.body());
+		assertThat(bhd.statusCode()).isEqualTo(HttpStatus.CREATED.value());
+		assertThat(bhdExpense.get("amountMinor").asText()).isEqualTo("12345");
+		assertThat(bhdExpense.get("currency").asText()).isEqualTo("BHD");
+		assertThat(bhdExpense.get("note").isNull()).isTrue();
+		assertThat(jdbc.queryForObject("SELECT currency FROM expenses WHERE title = ?", String.class, "Lunch")).isEqualTo("BHD");
+		assertThat(invalidBhd.statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+	}
+
+	@Test
+	void expenseSupportsWholeUnitJpyAndKeepsOptionalNotes() throws Exception {
+		HttpClient jpyBrowser = newBrowser();
+		registerAndSignIn(jpyBrowser, "dan@example.com", "JPY");
+		HttpResponse<String> jpy = post(jpyBrowser, "/api/expenses", Map.of("title", "Train", "amount", "123", "categoryId", 1, "date", "2026-08-04", "note", "Train fare"));
+		HttpResponse<String> invalidJpy = post(jpyBrowser, "/api/expenses", Map.of("title", "Train", "amount", "123.1", "categoryId", 1, "date", "2026-08-04"));
+
+		JsonNode jpyExpense = json.readTree(jpy.body());
+		assertThat(jpy.statusCode()).isEqualTo(HttpStatus.CREATED.value());
+		assertThat(jpyExpense.get("amountMinor").asText()).isEqualTo("123");
+		assertThat(jpyExpense.get("currency").asText()).isEqualTo("JPY");
+		assertThat(jpyExpense.get("note").asText()).isEqualTo("Train fare");
+		assertThat(jdbc.queryForObject("SELECT note FROM expenses WHERE title = ?", String.class, "Train")).isEqualTo("Train fare");
+		assertThat(invalidJpy.statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 	}
 
 	private void registerAndSignIn(String email, String currency) throws Exception {

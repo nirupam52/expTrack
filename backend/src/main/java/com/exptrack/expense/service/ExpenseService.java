@@ -9,6 +9,7 @@ import com.exptrack.category.service.CategoryService;
 import com.exptrack.expense.dto.ExpenseRequest;
 import com.exptrack.expense.dto.ExpenseResponse;
 import com.exptrack.expense.entity.Expense;
+import com.exptrack.expense.entity.ExpenseDetails;
 import com.exptrack.expense.repository.ExpenseRepository;
 import com.exptrack.user.entity.UserAccount;
 import com.exptrack.user.repository.UserAccountRepository;
@@ -34,8 +35,14 @@ public class ExpenseService {
 		if (!categories.isValid(request.categoryId())) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Category is invalid");
 		}
-		Expense expense = expenses.save(new Expense(user.getId(), request.title().trim(), amountMinor(request.amount(), user.getDefaultCurrency()),
-				request.categoryId(), request.date(), user.getDefaultCurrency(), optionalText(request.note())));
+		ExpenseDetails details = new ExpenseDetails(
+				request.title().trim(),
+				amountMinor(request.amount(), user.getDefaultCurrency()),
+				request.categoryId(),
+				request.date(),
+				user.getDefaultCurrency(),
+				optionalText(request.note()));
+		Expense expense = expenses.save(new Expense(user.getId(), details));
 		return response(expense);
 	}
 
