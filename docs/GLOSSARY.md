@@ -10,7 +10,11 @@ One self-hosted installation of the application. A deployment can have multiple 
 
 ## Expense
 
-A recorded monetary outflow owned by one user, with a title, amount, category, date, and optional note.
+A recorded monetary outflow owned by one user, with a title, exact amount, category, date, recorded currency, and optional note.
+
+## Minor unit
+
+The smallest standard unit of a currency. Expenses store their amount as a whole number of minor units so arithmetic is exact: `USD 12.34` is 1,234 cents, `JPY 500` is 500 yen, and `BHD 1.234` is 1,234 fils. The interface converts this representation to normal currency notation for people.
 
 ## Category
 
