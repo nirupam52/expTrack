@@ -34,11 +34,11 @@ class ExpenseEndpointTest {
 
 	@Test
 	void signedInUserCanAddAnExactExpenseAndSeeOnlyTheirRecentExpenses() throws Exception {
-		registerAndSignIn("ava@example.com", "USD");
+		registerAndSignIn("expense-ava@example.com", "USD");
 		HttpResponse<String> created = create(Map.of("title", "Coffee", "amount", "92233720368547758.07", "categoryId", 1, "date", "2026-08-04", "note", "With Sam"));
 		HttpResponse<String> recent = browser.send(HttpRequest.newBuilder(URI.create(url("/api/expenses"))).GET().build(), HttpResponse.BodyHandlers.ofString());
 		HttpClient otherBrowser = newBrowser();
-		registerAndSignIn(otherBrowser, "bea@example.com", "USD");
+		registerAndSignIn(otherBrowser, "expense-bea@example.com", "USD");
 		HttpResponse<String> otherRecent = otherBrowser.send(HttpRequest.newBuilder(URI.create(url("/api/expenses"))).GET().build(), HttpResponse.BodyHandlers.ofString());
 
 		assertThat(created.statusCode()).isEqualTo(HttpStatus.CREATED.value());
@@ -57,7 +57,7 @@ class ExpenseEndpointTest {
 	@Test
 	void expenseRejectsMissingOrBlankRequiredDetailsAndNonPositiveAmounts() throws Exception {
 		assertThat(create(Map.of("title", "Coffee", "amount", "12.34", "categoryId", 1, "date", "2026-08-04")).statusCode()).isEqualTo(HttpStatus.UNAUTHORIZED.value());
-		registerAndSignIn("bea@example.com", "USD");
+		registerAndSignIn("expense-validation@example.com", "USD");
 
 		assertThat(withoutCsrf(Map.of("title", "Coffee", "amount", "12.34", "categoryId", 1, "date", "2026-08-04")).statusCode()).isEqualTo(HttpStatus.FORBIDDEN.value());
 		assertThat(create(Map.of("title", "", "amount", "12.34", "categoryId", 1, "date", "2026-08-04")).statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
@@ -73,7 +73,7 @@ class ExpenseEndpointTest {
 
 	@Test
 	void expenseSupportsThreeDecimalBhdAndOmitsOptionalNotes() throws Exception {
-		registerAndSignIn("cam@example.com", "BHD");
+		registerAndSignIn("expense-bhd@example.com", "BHD");
 		HttpResponse<String> bhd = create(Map.of("title", "Lunch", "amount", "12.345", "categoryId", 1, "date", "2026-08-04"));
 		HttpResponse<String> invalidBhd = create(Map.of("title", "Lunch", "amount", "12.3456", "categoryId", 1, "date", "2026-08-04"));
 
@@ -89,7 +89,7 @@ class ExpenseEndpointTest {
 	@Test
 	void expenseSupportsWholeUnitJpyAndKeepsOptionalNotes() throws Exception {
 		HttpClient jpyBrowser = newBrowser();
-		registerAndSignIn(jpyBrowser, "dan@example.com", "JPY");
+		registerAndSignIn(jpyBrowser, "expense-jpy@example.com", "JPY");
 		HttpResponse<String> jpy = post(jpyBrowser, "/api/expenses", Map.of("title", "Train", "amount", "123", "categoryId", 1, "date", "2026-08-04", "note", "Train fare"));
 		HttpResponse<String> invalidJpy = post(jpyBrowser, "/api/expenses", Map.of("title", "Train", "amount", "123.1", "categoryId", 1, "date", "2026-08-04"));
 
@@ -107,7 +107,9 @@ class ExpenseEndpointTest {
 	}
 
 	private void registerAndSignIn(HttpClient client, String email, String currency) throws Exception {
-		post(client, "/api/auth/register", Map.of("email", email, "password", "correct-horse-battery-staple", "defaultCurrency", currency));
+		HttpResponse<String> registration = post(client, "/api/auth/register",
+				Map.of("email", email, "password", "correct-horse-battery-staple", "defaultCurrency", currency));
+		assertThat(registration.statusCode()).isEqualTo(HttpStatus.CREATED.value());
 		HttpResponse<Void> signIn = client.send(HttpRequest.newBuilder(URI.create(url("/api/auth/login")))
 				.header("Content-Type", "application/x-www-form-urlencoded")
 				.header("X-CSRF-TOKEN", csrfToken(client))
