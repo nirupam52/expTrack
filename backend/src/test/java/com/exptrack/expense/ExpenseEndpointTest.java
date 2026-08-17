@@ -10,6 +10,8 @@ import java.util.Map;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpStatus;
@@ -27,10 +29,13 @@ class ExpenseEndpointTest {
 	private final HttpClient browser = newBrowser();
 	private final ObjectMapper json = new ObjectMapper();
 
+	@Autowired
+	private JdbcTemplate jdbc;
+
 	@Test
 	void signedInUserCanAddAnExactExpenseAndSeeOnlyTheirRecentExpenses() throws Exception {
 		registerAndSignIn("ava@example.com", "USD");
-		HttpResponse<String> created = create(Map.of("title", "Coffee", "amount", "12.34", "category", "Dining", "date", "2026-08-04", "note", "With Sam"));
+		HttpResponse<String> created = create(Map.of("title", "Coffee", "amount", "12.34", "categoryId", 1, "date", "2026-08-04", "note", "With Sam"));
 		HttpResponse<String> recent = browser.send(HttpRequest.newBuilder(URI.create(url("/api/expenses"))).GET().build(), HttpResponse.BodyHandlers.ofString());
 		HttpClient otherBrowser = newBrowser();
 		registerAndSignIn(otherBrowser, "bea@example.com", "USD");
@@ -38,6 +43,8 @@ class ExpenseEndpointTest {
 
 		assertThat(created.statusCode()).isEqualTo(HttpStatus.CREATED.value());
 		assertThat(json.readTree(created.body()).get("amountMinor").asLong()).isEqualTo(1234);
+		assertThat(json.readTree(created.body()).get("categoryId").asInt()).isEqualTo(1);
+		assertThat(jdbc.queryForObject("SELECT category_id FROM expenses WHERE title = ?", Integer.class, "Coffee")).isEqualTo(1);
 		assertThat(recent.statusCode()).isEqualTo(HttpStatus.OK.value());
 		assertThat(json.readTree(recent.body()).get(0).get("title").asText()).isEqualTo("Coffee");
 		assertThat(json.readTree(otherRecent.body())).isEmpty();
@@ -45,11 +52,11 @@ class ExpenseEndpointTest {
 
 	@Test
 	void expenseRequiresAuthenticationCsrfValidDetailsAndCurrencyPrecision() throws Exception {
-		assertThat(create(Map.of("title", "Coffee", "amount", "12.34", "category", "Dining", "date", "2026-08-04")).statusCode()).isEqualTo(HttpStatus.UNAUTHORIZED.value());
+		assertThat(create(Map.of("title", "Coffee", "amount", "12.34", "categoryId", 1, "date", "2026-08-04")).statusCode()).isEqualTo(HttpStatus.UNAUTHORIZED.value());
 		registerAndSignIn("bea@example.com", "USD");
-		assertThat(withoutCsrf(Map.of("title", "Coffee", "amount", "12.34", "category", "Dining", "date", "2026-08-04")).statusCode()).isEqualTo(HttpStatus.FORBIDDEN.value());
-		assertThat(create(Map.of("title", "Coffee", "amount", "12.345", "category", "Dining", "date", "2026-08-04")).statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
-		assertThat(create(Map.of("title", "Coffee", "amount", "12.34", "category", "Not a category", "date", "2026-08-04")).statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+		assertThat(withoutCsrf(Map.of("title", "Coffee", "amount", "12.34", "categoryId", 1, "date", "2026-08-04")).statusCode()).isEqualTo(HttpStatus.FORBIDDEN.value());
+		assertThat(create(Map.of("title", "Coffee", "amount", "12.345", "categoryId", 1, "date", "2026-08-04")).statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+		assertThat(create(Map.of("title", "Coffee", "amount", "12.34", "categoryId", 99, "date", "2026-08-04")).statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 	}
 
 	private void registerAndSignIn(String email, String currency) throws Exception {
@@ -66,22 +73,22 @@ class ExpenseEndpointTest {
 		assertThat(signIn.statusCode()).isEqualTo(HttpStatus.NO_CONTENT.value());
 	}
 
-	private HttpResponse<String> create(Map<String, String> expense) throws Exception {
+	private HttpResponse<String> create(Map<String, ?> expense) throws Exception {
 		return post("/api/expenses", expense);
 	}
 
-	private HttpResponse<String> withoutCsrf(Map<String, String> expense) throws Exception {
+	private HttpResponse<String> withoutCsrf(Map<String, ?> expense) throws Exception {
 		return browser.send(HttpRequest.newBuilder(URI.create(url("/api/expenses")))
 				.header("Content-Type", "application/json")
 				.POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(expense)))
 				.build(), HttpResponse.BodyHandlers.ofString());
 	}
 
-	private HttpResponse<String> post(String path, Map<String, String> body) throws Exception {
+	private HttpResponse<String> post(String path, Map<String, ?> body) throws Exception {
 		return post(browser, path, body);
 	}
 
-	private HttpResponse<String> post(HttpClient client, String path, Map<String, String> body) throws Exception {
+	private HttpResponse<String> post(HttpClient client, String path, Map<String, ?> body) throws Exception {
 		return client.send(HttpRequest.newBuilder(URI.create(url(path)))
 				.header("Content-Type", "application/json")
 				.header("X-CSRF-TOKEN", csrfToken(client))

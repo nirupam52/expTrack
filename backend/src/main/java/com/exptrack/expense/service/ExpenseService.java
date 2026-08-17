@@ -31,11 +31,11 @@ public class ExpenseService {
 
 	public ExpenseResponse create(ExpenseRequest request, String email) {
 		UserAccount user = currentUser(email);
-		if (!categories.isValid(request.category())) {
+		if (!categories.isValid(request.categoryId())) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Category is invalid");
 		}
 		Expense expense = expenses.save(new Expense(user.getId(), request.title().trim(), amountMinor(request.amount(), user.getDefaultCurrency()),
-				request.category(), request.date(), user.getDefaultCurrency(), optionalText(request.note())));
+				request.categoryId(), request.date(), user.getDefaultCurrency(), optionalText(request.note())));
 		return response(expense);
 	}
 
@@ -67,7 +67,7 @@ public class ExpenseService {
 	}
 
 	private ExpenseResponse response(Expense expense) {
-		return new ExpenseResponse(expense.getId(), expense.getTitle(), expense.getAmountMinor(), expense.getCategory(),
+		return new ExpenseResponse(expense.getId(), expense.getTitle(), expense.getAmountMinor(), expense.getCategoryId(),
 				expense.getExpenseDate(), expense.getCurrency(), expense.getNote());
 	}
 }

@@ -3,7 +3,7 @@ CREATE TABLE expenses (
     user_id INTEGER NOT NULL,
     title TEXT NOT NULL,
     amount_minor BIGINT NOT NULL CHECK (amount_minor > 0),
-    category TEXT NOT NULL,
+    category_id INTEGER NOT NULL,
     expense_date DATE NOT NULL,
     currency TEXT NOT NULL,
     note TEXT,
