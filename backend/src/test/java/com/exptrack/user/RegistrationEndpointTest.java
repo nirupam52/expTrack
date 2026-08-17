@@ -10,6 +10,8 @@ import java.util.Map;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpStatus;
@@ -26,6 +28,9 @@ class RegistrationEndpointTest {
 
 	private HttpClient browser = newBrowser();
 	private final ObjectMapper json = new ObjectMapper();
+	@Autowired
+	private JdbcTemplate jdbc;
+
 
 	@Test
 	void visitorCanRegisterAnAccountWithValidDetails() throws Exception {
@@ -63,6 +68,7 @@ class RegistrationEndpointTest {
 		assertThat(session.statusCode()).isEqualTo(HttpStatus.OK.value());
 		JsonNode body = json.readTree(session.body());
 		assertThat(body.get("email").asText()).isEqualTo("bea@example.com");
+		assertThat(body.get("defaultCurrency").asText()).isEqualTo("USD");
 		assertThat(categories.statusCode()).isEqualTo(HttpStatus.OK.value());
 		assertThat(json.readTree(categories.body()).findValuesAsText("name")).containsExactly(
 				"Dining", "Education", "Entertainment", "Fuel", "Gifts & Donations", "Groceries", "Healthcare", "Housing",
@@ -70,6 +76,16 @@ class RegistrationEndpointTest {
 		assertThat(json.readTree(categories.body()).findValuesAsText("id")).containsExactly(
 				"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16");
 	}
+	@Test
+	void sessionForANoLongerExistingUserIsUnauthorized() throws Exception {
+		register("eli@example.com", "correct-horse-battery-staple", "USD");
+		signIn("eli@example.com", "correct-horse-battery-staple");
+		jdbc.update("DELETE FROM users WHERE email = ?", "eli@example.com");
+		HttpResponse<Void> session = browser.send(HttpRequest.newBuilder(URI.create(url("/api/auth/session"))).GET().build(), HttpResponse.BodyHandlers.discarding());
+
+		assertThat(session.statusCode()).isEqualTo(HttpStatus.UNAUTHORIZED.value());
+	}
+
 
 	@Test
 	void failedSignInIsGenericAndDoesNotCreateASession() throws Exception {

@@ -3,7 +3,8 @@ package com.exptrack.user.controller;
 import java.security.Principal;
 import java.util.Map;
 
-import com.exptrack.user.repository.UserAccountRepository;
+import com.exptrack.user.dto.SessionResponse;
+import com.exptrack.user.service.SessionService;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
@@ -14,10 +15,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/auth")
 public class SessionController {
 
-	private final UserAccountRepository users;
+	private final SessionService sessions;
 
-	public SessionController(UserAccountRepository users) {
-		this.users = users;
+	public SessionController(SessionService sessions) {
+		this.sessions = sessions;
 	}
 
 	@GetMapping("/csrf")
@@ -26,9 +27,7 @@ public class SessionController {
 	}
 
 	@GetMapping("/session")
-	Map<String, String> session(Principal principal) {
-		return users.findByEmailIgnoreCase(principal.getName())
-				.map(user -> Map.of("email", user.getEmail(), "defaultCurrency", user.getDefaultCurrency()))
-				.orElseThrow();
+	SessionResponse session(Principal principal) {
+		return sessions.current(principal.getName());
 	}
 }
