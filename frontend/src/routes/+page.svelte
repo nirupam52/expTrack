@@ -21,6 +21,7 @@
 	let categories = $state.raw<Category[]>([]);
 	let expenses = $state.raw<Expense[]>([]);
 	let loading = $state(true);
+	let submitting = $state(false);
 	let loadError = $state('');
 	let signOutError = $state('');
 	let error = $state('');
