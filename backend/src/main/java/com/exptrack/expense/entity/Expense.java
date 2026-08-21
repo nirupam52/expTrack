@@ -50,8 +50,20 @@ public class Expense {
 		this.note = details.note();
 	}
 
+	public void update(ExpenseDetails details) {
+		this.title = details.title();
+		this.amountMinor = details.amountMinor();
+		this.categoryId = details.categoryId();
+		this.expenseDate = details.expenseDate();
+		this.note = details.note();
+	}
+
 	public Integer getId() {
 		return id;
+	}
+
+	public Integer getUserId() {
+		return userId;
 	}
 
 	public String getTitle() {

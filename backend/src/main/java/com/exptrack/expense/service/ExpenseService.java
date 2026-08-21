@@ -2,19 +2,27 @@ package com.exptrack.expense.service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
+import java.time.DateTimeException;
+import java.time.LocalDate;
+import java.util.Base64;
 import java.util.Currency;
 import java.util.List;
 
 import com.exptrack.category.service.CategoryService;
+import com.exptrack.expense.dto.ExpenseHistoryRequest;
+import com.exptrack.expense.dto.ExpensePageResponse;
 import com.exptrack.expense.dto.ExpenseRequest;
 import com.exptrack.expense.dto.ExpenseResponse;
 import com.exptrack.expense.entity.Expense;
 import com.exptrack.expense.entity.ExpenseDetails;
 import com.exptrack.expense.repository.ExpenseRepository;
+import com.exptrack.expense.repository.ExpenseHistoryQuery;
 import com.exptrack.user.entity.UserAccount;
 import com.exptrack.user.repository.UserAccountRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
@@ -32,22 +40,91 @@ public class ExpenseService {
 
 	public ExpenseResponse create(ExpenseRequest request, String email) {
 		UserAccount user = currentUser(email);
-		if (!categories.isValid(request.categoryId())) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Category is invalid");
-		}
-		ExpenseDetails details = new ExpenseDetails(
-				request.title().trim(),
-				amountMinor(request.amount(), user.getDefaultCurrency()),
-				request.categoryId(),
-				request.date(),
-				user.getDefaultCurrency(),
-				optionalText(request.note()));
-		Expense expense = expenses.save(new Expense(user.getId(), details));
+		Expense expense = expenses.save(new Expense(user.getId(), details(request, user.getDefaultCurrency())));
 		return response(expense);
 	}
 
-	public List<ExpenseResponse> recent(String email) {
-		return expenses.findTop10ByUserIdOrderByExpenseDateDescIdDesc(currentUser(email).getId()).stream().map(this::response).toList();
+	public ExpensePageResponse history(ExpenseHistoryRequest request, String email) {
+		int limit = request.limit() == null ? 20 : request.limit();
+		validateHistoryFilters(request.categoryId(), request.from(), request.to());
+		Cursor cursor = decodeCursor(request.cursor());
+		ExpenseHistoryQuery history = new ExpenseHistoryQuery(
+				currentUser(email).getId(), searchPhrase(request.query()), request.categoryId(), request.from(), request.to(),
+				cursor.date(), cursor.id(), limit + 1);
+		List<Expense> matches = expenses.findHistory(history);
+		boolean hasMore = matches.size() > limit;
+		List<ExpenseResponse> items = matches.stream().limit(limit).map(this::response).toList();
+		return new ExpensePageResponse(items, hasMore ? encodeCursor(matches.get(limit - 1)) : null);
+	}
+
+	@Transactional
+	public ExpenseResponse update(Integer expenseId, ExpenseRequest request, String email) {
+		Expense expense = ownedExpense(expenseId, email);
+		expense.update(details(request, expense.getCurrency()));
+		return response(expense);
+	}
+
+	@Transactional
+	public void delete(Integer expenseId, String email) {
+		expenses.delete(ownedExpense(expenseId, email));
+	}
+
+	private ExpenseDetails details(ExpenseRequest request, String currency) {
+		if (!categories.isValid(request.categoryId())) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Category is invalid");
+		}
+		return new ExpenseDetails(
+				request.title().trim(),
+				amountMinor(request.amount(), currency),
+				request.categoryId(),
+				request.date(),
+				currency,
+				optionalText(request.note()));
+	}
+
+	private void validateHistoryFilters(Integer categoryId, LocalDate from, LocalDate to) {
+		if (categoryId != null && !categories.isValid(categoryId)) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Category is invalid");
+		}
+		if (from != null && to != null && from.isAfter(to)) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Date range is invalid");
+		}
+	}
+
+	private Cursor decodeCursor(String encodedCursor) {
+		if (encodedCursor == null) return Cursor.empty();
+		try {
+			String[] values = new String(Base64.getUrlDecoder().decode(encodedCursor)).split("\\|", -1);
+			if (values.length != 2) throw new IllegalArgumentException();
+			Integer id = Integer.valueOf(values[1]);
+			if (id <= 0) throw new IllegalArgumentException();
+			return new Cursor(LocalDate.parse(values[0]), id);
+		} catch (IllegalArgumentException | DateTimeException exception) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cursor is invalid");
+		}
+	}
+
+	private String searchPhrase(String value) {
+		String text = optionalText(value);
+		if (text == null) return null;
+		String terms = text.replaceAll("[^\\p{L}\\p{N}]+", " ").trim();
+		return "\"" + (terms.isEmpty() ? "__exptrack_no_match__" : terms) + "\"";
+	}
+
+	private String encodeCursor(Expense expense) {
+		String value = expense.getExpenseDate() + "|" + expense.getId();
+		return Base64.getUrlEncoder().withoutPadding().encodeToString(value.getBytes(StandardCharsets.UTF_8));
+	}
+
+	private Expense ownedExpense(Integer expenseId, String email) {
+		return expenses.findByIdAndUserId(expenseId, currentUser(email).getId())
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+	}
+
+	private record Cursor(LocalDate date, Integer id) {
+		private static Cursor empty() {
+			return new Cursor(null, null);
+		}
 	}
 
 	private UserAccount currentUser(String email) {

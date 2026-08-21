@@ -17,3 +17,12 @@ export function formatCurrency({ amountMinor, currency }: Pick<Expense, 'amountM
 		return part.value;
 	}).join('');
 }
+
+export function amountForInput({ amountMinor, currency }: Pick<Expense, 'amountMinor' | 'currency'>) {
+	const formatter = new Intl.NumberFormat(undefined, { style: 'currency', currency });
+	const fractionDigits = formatter.resolvedOptions().maximumFractionDigits ?? 2;
+	if (fractionDigits === 0) return amountMinor;
+	const amount = BigInt(amountMinor);
+	const scale = 10n ** BigInt(fractionDigits);
+	return `${amount / scale}.${(amount % scale).toString().padStart(fractionDigits, '0')}`;
+}
