@@ -1,11 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
-	import { get, HttpError, post } from '$lib/api/client';
+	import { del, get, HttpError, post, put } from '$lib/api/client';
 	import {
 		categoriesSchema,
 		expenseSchema,
-		expensesSchema,
 		sessionSchema,
 		type AuthSubmission,
 		type Category,
@@ -15,17 +14,27 @@
 	} from '$lib/api/types';
 	import AuthForm from '$lib/components/AuthForm.svelte';
 	import ExpenseForm from '$lib/components/ExpenseForm.svelte';
-	import RecentExpenses from '$lib/components/RecentExpenses.svelte';
+	import ExpenseHistory from '$lib/components/ExpenseHistory.svelte';
+	import { today } from '$lib/utils/date';
+	import { amountForInput } from '$lib/utils/format-currency';
+
+	type Toast = {
+		id: number;
+		kind: 'success' | 'error';
+		message: string;
+	};
 
 	let session = $state<Session | null>(null);
 	let categories = $state.raw<Category[]>([]);
-	let expenses = $state.raw<Expense[]>([]);
 	let loading = $state(true);
 	let submitting = $state(false);
 	let loadError = $state('');
 	let signOutError = $state('');
 	let error = $state('');
-	let category = $state<number | null>(null);
+	let editing = $state<Expense | null>(null);
+	let historyVersion = $state(0);
+	let toast = $state<Toast | null>(null);
+	let toastSequence = 0;
 
 	onMount(() => {
 		void loadSession();
@@ -52,18 +61,10 @@
 
 	async function loadLedger() {
 		try {
-			await loadExpenses();
+			categories = await get('/api/categories', categoriesSchema);
 		} catch {
 			loadError = 'Unable to load your ledger. Please try again.';
 		}
-	}
-
-	async function loadExpenses() {
-		[expenses, categories] = await Promise.all([
-			get('/api/expenses', expensesSchema),
-			get('/api/categories', categoriesSchema)
-		]);
-		category ??= categories[0]?.id ?? null;
 	}
 
 	async function authenticate({ mode, email, password, defaultCurrency }: AuthSubmission) {
@@ -86,17 +87,61 @@
 		error = '';
 		submitting = true;
 		try {
-			const created = await post('/api/expenses', draft, expenseSchema);
-			expenses = [created, ...expenses].slice(0, 10);
+			await post('/api/expenses', draft, expenseSchema);
+			historyVersion += 1;
 			return true;
 		} catch (cause) {
-			error = cause instanceof HttpError && cause.status === 400
-				? `${cause.detail ? `${cause.detail}. ` : ''}Enter a title, positive amount, category, and date.`
-				: 'Could not save the expense. Please try again.';
+			error = expenseError(cause, 'Could not save the expense. Please try again.');
 			return false;
 		} finally {
 			submitting = false;
 		}
+	}
+
+	async function updateExpense(draft: ExpenseDraft) {
+		if (!editing) return false;
+		error = '';
+		submitting = true;
+		try {
+			await put(`/api/expenses/${editing.id}`, draft, expenseSchema);
+			historyVersion += 1;
+			return true;
+		} catch (cause) {
+			error = expenseError(cause, 'Could not update the expense. Please try again.');
+			return false;
+		} finally {
+			submitting = false;
+		}
+	}
+
+	async function deleteExpense(expense: Expense) {
+		try {
+			await del(`/api/expenses/${expense.id}`);
+			if (editing?.id === expense.id) {
+				editing = null;
+				error = '';
+			}
+			historyVersion += 1;
+			showToast('success', 'Expense deleted.');
+			return true;
+		} catch {
+			showToast('error', 'Could not delete the expense. Please try again.');
+			return false;
+		}
+	}
+
+	function expenseError(cause: unknown, fallback: string) {
+		return cause instanceof HttpError && cause.status === 400
+			? `${cause.detail ? `${cause.detail}. ` : ''}Enter a title, positive amount, category, and date.`
+			: fallback;
+	}
+
+	function showToast(kind: Toast['kind'], message: string) {
+		const id = ++toastSequence;
+		toast = { id, kind, message };
+		window.setTimeout(() => {
+			if (toast?.id === id) toast = null;
+		}, 5000);
 	}
 
 	async function signOut() {
@@ -104,12 +149,11 @@
 		try {
 			await post('/api/auth/logout', null);
 			session = null;
-			expenses = [];
+			editing = null;
 		} catch {
 			signOutError = 'Could not sign out. Please try again.';
 		}
 	}
-
 </script>
 
 <svelte:head><title>ExpTrack</title><meta name="description" content="A private place to record everyday spending." /></svelte:head>
@@ -134,10 +178,18 @@
 	{:else if !session}
 		<AuthForm {submitting} {error} onSubmit={authenticate} onModeChange={() => error = ''} />
 	{:else}
-		<section class="ledger" aria-labelledby="add-expense-title">
-			<div class="heading"><div><p class="eyebrow">Your ledger</p><h1 id="add-expense-title">Add an expense</h1></div><p>{session.defaultCurrency}</p></div>
-			<ExpenseForm {categories} bind:category {submitting} {error} onSubmit={addExpense} />
-		</section>
-		<RecentExpenses {expenses} {categories} />
+		{#if editing}
+			<section class="ledger" aria-labelledby="edit-expense-title">
+				<div class="heading"><div><p class="eyebrow">Correction</p><h1 id="edit-expense-title">Edit expense</h1></div><p>{editing.currency}</p></div>
+				{#key editing.id}<ExpenseForm {categories} initial={{ title: editing.title, amount: amountForInput(editing), categoryId: editing.categoryId, date: editing.date, note: editing.note ?? '' }} {submitting} {error} submitLabel="Save changes" onCancel={() => { editing = null; error = ''; }} onSubmit={updateExpense} />{/key}
+			</section>
+		{:else}
+			<section class="ledger" aria-labelledby="add-expense-title">
+				<div class="heading"><div><p class="eyebrow">Your ledger</p><h1 id="add-expense-title">Add an expense</h1></div><p>{session.defaultCurrency}</p></div>
+				<ExpenseForm {categories} initial={{ title: '', amount: '', categoryId: categories[0]?.id ?? null, date: today(), note: '' }} {submitting} {error} onSubmit={addExpense} />
+			</section>
+		{/if}
+		<ExpenseHistory {categories} reloadVersion={historyVersion} onEdit={(expense) => { editing = expense; error = ''; }} onDelete={deleteExpense} />
+		{#if toast}<p class:toast-error={toast.kind === 'error'} class="toast" role={toast.kind === 'error' ? 'alert' : 'status'}>{toast.message}</p>{/if}
 	{/if}
 </main>

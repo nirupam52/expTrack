@@ -10,6 +10,11 @@ You are building a production-quality personal expense tracker.
 4. Maintainability
 5. Visual polish
 
+## Communication
+- For user communications, speak in ASD-STE100 only. 
+- Do not tell me "non-goals" or what you "won't" do. 
+- No dead prose.
+
 ## Coding Standards
 - Always follow industry best practices and the idiomatic conventions of the language and framework in use.
 - Follow existing project structure.

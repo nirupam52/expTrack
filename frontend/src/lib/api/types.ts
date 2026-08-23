@@ -22,7 +22,10 @@ export const expenseSchema = z.object({
 	currency: currencySchema,
 	note: z.string().nullable()
 });
-export const expensesSchema = z.array(expenseSchema);
+export const expensePageSchema = z.object({
+	items: z.array(expenseSchema),
+	nextCursor: z.string().min(1).nullable()
+});
 
 export type Category = z.infer<typeof categorySchema>;
 export type Session = z.infer<typeof sessionSchema>;

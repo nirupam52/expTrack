@@ -53,7 +53,7 @@ export function get<T>(path: string, schema: ZodType<T>) {
 
 export function post<T>(path: string, body: unknown, responseSchema: ZodType<T>, contentType?: string): Promise<T>;
 export function post(path: string, body: unknown, contentType?: string): Promise<void>;
-export async function post<T>(
+export function post<T>(
 	path: string,
 	body: unknown,
 	responseSchemaOrContentType?: ZodType<T> | string,
@@ -61,11 +61,31 @@ export async function post<T>(
 ): Promise<T | void> {
 	const responseSchema = typeof responseSchemaOrContentType === 'string' ? undefined : responseSchemaOrContentType;
 	const contentType = typeof responseSchemaOrContentType === 'string' ? responseSchemaOrContentType : requestedContentType;
+	return mutate('POST', path, body, responseSchema, contentType);
+}
+
+export function put<T>(path: string, body: unknown, responseSchema: ZodType<T>) {
+	return mutate('PUT', path, body, responseSchema);
+}
+
+export function del(path: string) {
+	return mutate('DELETE', path);
+}
+
+async function mutate<T>(
+	method: 'POST' | 'PUT' | 'DELETE',
+	path: string,
+	body?: unknown,
+	responseSchema?: ZodType<T>,
+	contentType = 'application/json'
+): Promise<T | void> {
+	const headers: Record<string, string> = { 'X-CSRF-TOKEN': await csrfToken() };
+	if (body !== undefined) headers['Content-Type'] = contentType;
 	const response = await fetch(path, {
-		method: 'POST',
+		method,
 		credentials: 'same-origin',
-		headers: { 'Content-Type': contentType, 'X-CSRF-TOKEN': await csrfToken() },
-		body: requestBody(body, contentType)
+		headers,
+		body: body === undefined ? undefined : requestBody(body, contentType)
 	});
 	if (!response.ok) throw await responseError(response);
 	return responseSchema ? parseJson(response, responseSchema) : undefined;

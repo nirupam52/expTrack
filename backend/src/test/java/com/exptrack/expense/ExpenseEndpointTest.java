@@ -50,8 +50,8 @@ class ExpenseEndpointTest {
 		assertThat(jdbc.queryForObject("SELECT category_id FROM expenses WHERE title = ?", Integer.class, "Coffee")).isEqualTo(1);
 		assertThat(jdbc.queryForObject("SELECT currency FROM expenses WHERE title = ?", String.class, "Coffee")).isEqualTo("USD");
 		assertThat(recent.statusCode()).isEqualTo(HttpStatus.OK.value());
-		assertThat(json.readTree(recent.body()).get(0).get("title").asText()).isEqualTo("Coffee");
-		assertThat(json.readTree(otherRecent.body())).isEmpty();
+		assertThat(json.readTree(recent.body()).get("items").get(0).get("title").asText()).isEqualTo("Coffee");
+		assertThat(json.readTree(otherRecent.body()).get("items")).isEmpty();
 	}
 
 	@Test
