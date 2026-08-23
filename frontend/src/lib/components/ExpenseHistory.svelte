@@ -96,6 +96,11 @@
 			deleting = false;
 		}
 	}
+
+	function cancelDelete(event: Event) {
+		if (deleting) event.preventDefault();
+		else confirming = null;
+	}
 </script>
 
 <section class="history" aria-labelledby="history-title">
@@ -119,6 +124,6 @@
 	{#if nextCursor && !loading}<button class="load-more" onclick={() => void load(nextCursor, true)}>Load more</button>{/if}
 </section>
 
-<dialog bind:this={deleteDialog} oncancel={() => confirming = null} aria-labelledby="delete-title">
+<dialog bind:this={deleteDialog} oncancel={cancelDelete} aria-labelledby="delete-title">
 	{#if confirming}<h2 id="delete-title">Delete “{confirming.title}”?</h2><p>This permanently removes the expense. It cannot be undone.</p><div class="dialog-actions"><button class="quiet" onclick={() => confirming = null} disabled={deleting}>Cancel</button><button class="danger destructive" onclick={confirmDelete} disabled={deleting}>{deleting ? 'Deleting…' : 'Delete expense'}</button></div>{/if}
 </dialog>

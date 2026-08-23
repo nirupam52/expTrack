@@ -117,6 +117,10 @@
 	async function deleteExpense(expense: Expense) {
 		try {
 			await del(`/api/expenses/${expense.id}`);
+			if (editing?.id === expense.id) {
+				editing = null;
+				error = '';
+			}
 			historyVersion += 1;
 			showToast('success', 'Expense deleted.');
 			return true;
