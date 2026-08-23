@@ -23,8 +23,10 @@ RUN --mount=type=cache,target=/root/.m2 mvn package -DskipTests -q
 
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
-COPY --from=backend-build /app/target/backend-*.jar app.jar
+RUN addgroup -S exptrack && adduser -S -G exptrack exptrack && mkdir /data && chown exptrack:exptrack /data
+COPY --from=backend-build --chown=exptrack:exptrack /app/target/backend-*.jar app.jar
 ENV EXPTRACK_DATABASE_PATH=/data/exptrack.db
 VOLUME /data
 EXPOSE 8080
+USER exptrack
 ENTRYPOINT ["java", "-jar", "app.jar"]
