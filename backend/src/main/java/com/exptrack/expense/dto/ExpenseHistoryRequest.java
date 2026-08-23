@@ -11,6 +11,6 @@ public record ExpenseHistoryRequest(
 		Integer categoryId,
 		LocalDate from,
 		LocalDate to,
-		String cursor,
+		@Size(max = 64) String cursor,
 		@Min(1) @Max(50) Integer limit) {
 }

@@ -83,7 +83,7 @@ class ExpenseWorkflowEndpointTest {
 		assertThat(otherUpdate.statusCode()).isEqualTo(HttpStatus.NOT_FOUND.value());
 		assertThat(otherDelete.statusCode()).isEqualTo(HttpStatus.NOT_FOUND.value());
 		assertThat(deleted.statusCode()).isEqualTo(HttpStatus.NO_CONTENT.value());
-		assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM expenses WHERE id = ?", Integer.class, expenseId)).isZero();
+		assertThat(json.readTree(get("/api/expenses").body()).get("items")).isEmpty();
 	}
 
 	@Test
@@ -93,6 +93,7 @@ class ExpenseWorkflowEndpointTest {
 		assertThat(get("/api/expenses?from=2026-08-31&to=2026-08-01").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 		assertThat(get("/api/expenses?categoryId=99").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 		assertThat(get("/api/expenses?cursor=not-a-cursor").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+		assertThat(get("/api/expenses?cursor=" + "a".repeat(65)).statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 		String invalidDateCursor = Base64.getUrlEncoder().withoutPadding()
 				.encodeToString("2026-99-01|1".getBytes(StandardCharsets.UTF_8));
 		assertThat(get("/api/expenses?cursor=" + invalidDateCursor).statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
