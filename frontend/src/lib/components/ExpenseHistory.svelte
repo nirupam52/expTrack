@@ -60,6 +60,7 @@
 		const version = ++loadVersion;
 		loading = true;
 		error = '';
+		if (!append) nextCursor = null;
 		try {
 			const page = await get(historyPath(cursor), expensePageSchema);
 			if (version !== loadVersion) return;
@@ -121,7 +122,7 @@
 	{:else if expenses.length === 0 && !loading}<p class="empty">No expenses match these filters.</p>
 	{:else}<ul>{#each expenses as expense (expense.id)}<li class="expense-row"><div><strong>{expense.title}</strong><span>{categoryNames.get(expense.categoryId) ?? 'Unknown category'} · {expense.date}{#if expense.note} · {expense.note}{/if}</span></div><div class="expense-actions"><b>{formatCurrency(expense)}</b><button class="quiet" onclick={() => onEdit(expense)}>Edit</button><button class="danger" onclick={() => confirming = expense}>Delete</button></div></li>{/each}</ul>{/if}
 	{#if loading}<p class="status">Loading expenses…</p>{/if}
-	{#if nextCursor && !loading}<button class="load-more" onclick={() => void load(nextCursor, true)}>Load more</button>{/if}
+	{#if nextCursor && !loading && !error}<button class="load-more" onclick={() => void load(nextCursor, true)}>Load more</button>{/if}
 </section>
 
 <dialog bind:this={deleteDialog} oncancel={cancelDelete} aria-labelledby="delete-title">

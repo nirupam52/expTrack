@@ -13,21 +13,12 @@
 		onSubmit: (draft: ExpenseDraft) => Promise<boolean>;
 	} = $props();
 
-	let title = $state('');
-	let amount = $state('');
-	let category = $state<number | null>(null);
-	let date = $state('');
-	let note = $state('');
-
-	$effect.pre(() => {
-		untrack(() => {
-			title = initial.title;
-			amount = initial.amount;
-			category = initial.categoryId;
-			date = initial.date;
-			note = initial.note;
-		});
-	});
+	const initialValues = untrack(() => ({ ...initial }));
+	let title = $state(initialValues.title);
+	let amount = $state(initialValues.amount);
+	let category = $state<number | null>(initialValues.categoryId);
+	let date = $state(initialValues.date);
+	let note = $state(initialValues.note);
 
 	async function submit(event: SubmitEvent) {
 		event.preventDefault();

@@ -7,7 +7,7 @@ body { margin: 0; background: #edf3f2; color: #183034; font-family: Inter, ui-sa
 .app header, .app .heading, .app li { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
 .app header { border-bottom: 1px solid #c7d7d5; padding-bottom: 1rem; }
 .app .brand { color: inherit; font-size: 1.25rem; font-weight: 800; letter-spacing: -.05em; text-decoration: none; }
-.app .auth, .app .ledger, .app .history, .app .recent { margin-top: 2rem; }
+.app .auth, .app .ledger, .app .history { margin-top: 2rem; }
 .app .auth { max-width: 30rem; }
 .app .eyebrow { color: #477176; font-size: .73rem; font-weight: 800; letter-spacing: .12em; margin: 0 0 .45rem; text-transform: uppercase; }
 .app h1, .app h2, .app p { margin-top: 0; }
@@ -26,7 +26,6 @@ body { margin: 0; background: #edf3f2; color: #183034; font-family: Inter, ui-sa
 .app .form-actions, .app .filter-actions, .app .dialog-actions, .app .expense-actions { align-items: center; display: flex; gap: .75rem; }
 .app .switch { margin-top: 1rem; }
 .app .error { color: #9a2e25; font-size: .9rem; margin: 0; }
-.app .recent { border-top: 1px solid #c7d7d5; padding-top: 1.5rem; }
 .app .history { border-top: 1px solid #c7d7d5; padding-top: 1.5rem; }
 .app .history-filters { display: grid; gap: .85rem; margin-top: 1.25rem; }
 .app .filter-pair { display: grid; gap: .85rem; }

@@ -30,7 +30,6 @@ export const expensePageSchema = z.object({
 export type Category = z.infer<typeof categorySchema>;
 export type Session = z.infer<typeof sessionSchema>;
 export type Expense = z.infer<typeof expenseSchema>;
-export type ExpensePage = z.infer<typeof expensePageSchema>;
 
 export type AuthSubmission = {
 	mode: 'sign-in' | 'register';
