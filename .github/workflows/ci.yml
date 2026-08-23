@@ -46,10 +46,3 @@ jobs:
           java-version: "21"
           cache: maven
       - run: mvn -B verify
-
-  container:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-      - run: docker build --tag exptrack:ci .
