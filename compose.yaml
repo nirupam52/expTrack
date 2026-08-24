@@ -2,11 +2,14 @@ services:
   app:
     build: .
     restart: unless-stopped
+    # Keep the image read-only; data and temporary files use explicit mounts.
     read_only: true
+    # Provide a non-persistent writable directory for runtime temporary files.
     tmpfs:
       - /tmp:mode=1777,nosuid,nodev,size=64m
     cap_drop:
       - ALL
+    # The entrypoint needs these only to repair a mounted data volume.
     cap_add:
       - CHOWN
       - SETGID
@@ -25,8 +28,10 @@ services:
         max-size: 10m
         max-file: "3"
     ports:
+      # Publish only on the host for a reverse proxy or local access.
       - "127.0.0.1:8080:8080"
     volumes:
+      # Keep SQLite data when the application container is replaced.
       - expense-data:/data
 
 volumes:

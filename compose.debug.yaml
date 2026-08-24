@@ -13,10 +13,12 @@ services:
       EXPTRACK_SESSION_COOKIE_SECURE: "false"
       EXPTRACK_DATABASE_PATH: /data/exptrack.db
     ports:
+      # Keep the Java debugger on the local host.
       - "127.0.0.1:5005:5005"
     volumes:
       - ./backend:/app
       - debug-expense-data:/data
+      # Keep Maven downloads outside the source bind mount.
       - maven-cache:/root/.m2
     develop:
       watch:
@@ -35,6 +37,7 @@ services:
     ports:
       - "127.0.0.1:5173:5173"
     environment:
+      # Polling detects source changes through the host bind mount.
       CHOKIDAR_USEPOLLING: "true"
       VITE_API_PROXY_TARGET: "http://app:8080"
     volumes:
