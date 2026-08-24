@@ -19,10 +19,12 @@ CMD ["mvn", "spring-boot:run"]
 
 FROM backend-development AS backend-build
 COPY --from=frontend-build /app/build src/main/resources/static
+# Reuse Maven downloads without adding them to the image.
 RUN --mount=type=cache,target=/root/.m2 mvn package -DskipTests -q
 
 FROM eclipse-temurin:21-jre-alpine@sha256:974b08960c5d96694c780e65b2d5705268ab1e1ca1a0dd0caf4ba6c3fe34d699
 WORKDIR /app
+# Keep a stable UID for the mounted SQLite volume.
 RUN addgroup -S -g 10001 exptrack \
 	&& adduser -S -D -H -u 10001 -G exptrack exptrack \
 	&& mkdir /data \
@@ -32,5 +34,6 @@ COPY --from=backend-build --chown=exptrack:exptrack /app/target/backend-*.jar ap
 COPY --chmod=755 docker-entrypoint.sh .
 ENV EXPTRACK_DATABASE_PATH=/data/exptrack.db
 EXPOSE 8080
+# Repair mounted-volume ownership, then start the app as a non-root user.
 ENTRYPOINT ["./docker-entrypoint.sh"]
 CMD ["java", "-jar", "app.jar"]
