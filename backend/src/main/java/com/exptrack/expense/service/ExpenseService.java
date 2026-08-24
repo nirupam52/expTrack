@@ -1,13 +1,14 @@
 package com.exptrack.expense.service;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.YearMonth;
-import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Comparator;
 import java.util.Currency;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -24,7 +25,7 @@ import com.exptrack.expense.dto.ExpenseResponse;
 import com.exptrack.expense.entity.Expense;
 import com.exptrack.expense.entity.ExpenseDetails;
 import com.exptrack.expense.repository.ExpenseRepository;
-import com.exptrack.expense.repository.DashboardCategoryTotal;
+import com.exptrack.expense.repository.DashboardExpenseAmount;
 import com.exptrack.expense.repository.ExpenseHistoryQuery;
 import com.exptrack.user.entity.UserAccount;
 import com.exptrack.user.repository.UserAccountRepository;
@@ -54,10 +55,10 @@ public class ExpenseService {
 
 	public ExpensePageResponse history(ExpenseHistoryRequest request, String email) {
 		int limit = request.limit() == null ? 20 : request.limit();
-		validateHistoryFilters(request.categoryId(), request.from(), request.to());
+		validateHistoryFilters(request.categoryId(), request.currency(), request.from(), request.to());
 		Cursor cursor = decodeCursor(request.cursor());
 		ExpenseHistoryQuery history = new ExpenseHistoryQuery(
-				currentUser(email).getId(), searchPhrase(request.query()), request.categoryId(), request.from(), request.to(),
+				currentUser(email).getId(), searchPhrase(request.query()), request.categoryId(), request.currency(), request.from(), request.to(),
 				cursor.date(), cursor.id(), limit + 1);
 		List<Expense> matches = expenses.findHistory(history);
 		boolean hasMore = matches.size() > limit;
@@ -68,9 +69,11 @@ public class ExpenseService {
 	public DashboardResponse dashboard(String email) {
 		UserAccount user = currentUser(email);
 		YearMonth month = YearMonth.now();
-		Map<String, List<DashboardCategoryTotal>> totalsByCurrency = new LinkedHashMap<>();
-		for (DashboardCategoryTotal total : expenses.findDashboardCategoryTotals(user.getId(), month.atDay(1), month.plusMonths(1).atDay(1))) {
-			totalsByCurrency.computeIfAbsent(total.getCurrency(), ignored -> new ArrayList<>()).add(total);
+		Map<String, Map<Integer, BigInteger>> totalsByCurrency = new LinkedHashMap<>();
+		// ponytail: current-month row scan keeps totals exact; use database decimal aggregation if it becomes a measured limit.
+		for (DashboardExpenseAmount amount : expenses.findDashboardExpenseAmounts(user.getId(), month.atDay(1), month.plusMonths(1).atDay(1))) {
+			totalsByCurrency.computeIfAbsent(amount.getCurrency(), ignored -> new LinkedHashMap<>())
+				.merge(amount.getCategoryId(), BigInteger.valueOf(amount.getAmountMinor()), BigInteger::add);
 		}
 		List<DashboardCurrencyResponse> currencies = totalsByCurrency.entrySet().stream().map(this::currencyResponse).toList();
 		List<ExpenseResponse> recentExpenses = expenses.findTop5ByUserIdOrderByExpenseDateDescIdDesc(user.getId()).stream().map(this::response).toList();
@@ -102,9 +105,16 @@ public class ExpenseService {
 				optionalText(request.note()));
 	}
 
-	private void validateHistoryFilters(Integer categoryId, LocalDate from, LocalDate to) {
+	private void validateHistoryFilters(Integer categoryId, String currencyCode, LocalDate from, LocalDate to) {
 		if (categoryId != null && !categories.isValid(categoryId)) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Category is invalid");
+		}
+		if (currencyCode != null) {
+			try {
+				Currency.getInstance(currencyCode);
+			} catch (IllegalArgumentException exception) {
+				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Currency is invalid");
+			}
 		}
 		if (from != null && to != null && from.isAfter(to)) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Date range is invalid");
@@ -175,10 +185,12 @@ public class ExpenseService {
 				expense.getExpenseDate(), expense.getCurrency(), expense.getNote());
 	}
 
-	private DashboardCurrencyResponse currencyResponse(Map.Entry<String, List<DashboardCategoryTotal>> entry) {
-		long total = entry.getValue().stream().mapToLong(DashboardCategoryTotal::getAmountMinor).sum();
-		List<DashboardCategoryResponse> categories = entry.getValue().stream()
-				.map(value -> new DashboardCategoryResponse(value.getCategoryId(), Long.toString(value.getAmountMinor()))).toList();
-		return new DashboardCurrencyResponse(entry.getKey(), Long.toString(total), categories);
+	private DashboardCurrencyResponse currencyResponse(Map.Entry<String, Map<Integer, BigInteger>> entry) {
+		BigInteger total = entry.getValue().values().stream().reduce(BigInteger.ZERO, BigInteger::add);
+		List<DashboardCategoryResponse> categories = entry.getValue().entrySet().stream()
+				.sorted(Comparator.<Map.Entry<Integer, BigInteger>, BigInteger>comparing(Map.Entry::getValue).reversed()
+						.thenComparing(Map.Entry::getKey))
+				.map(value -> new DashboardCategoryResponse(value.getKey(), value.getValue().toString())).toList();
+		return new DashboardCurrencyResponse(entry.getKey(), total.toString(), categories);
 	}
 }

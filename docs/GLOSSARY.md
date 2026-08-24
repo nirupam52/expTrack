@@ -34,7 +34,7 @@ A current-month dashboard summary of spending by category in the selected dashbo
 
 ## Dashboard currency selection
 
-The recorded currency summarized by the dashboard. The dashboard shows a currency switch only when current-month expenses use more than one currency; otherwise it shows the sole current-month currency without a switch.
+The recorded currency selected for dashboard summaries. The dashboard selects the default currency first when it has current-month expenses; otherwise it selects the first available currency. It shows a currency switch only when current-month expenses use more than one currency; otherwise it shows the sole current-month currency without a switch.
 
 ## Category drill-down
 

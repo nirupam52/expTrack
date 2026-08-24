@@ -1,6 +1,6 @@
 package com.exptrack.expense.repository;
 
-public interface DashboardCategoryTotal {
+public interface DashboardExpenseAmount {
 
 	String getCurrency();
 
