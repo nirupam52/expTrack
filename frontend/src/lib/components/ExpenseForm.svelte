@@ -3,13 +3,14 @@
 	import type { Category, ExpenseDraft } from '$lib/api/types';
 	import { today } from '$lib/utils/date';
 
-	let { categories, initial, submitting, error, submitLabel = 'Save expense', onCancel, onSubmit }: {
+	let { categories, initial, submitting, error, submitLabel = 'Save expense', onCancel, onDirty, onSubmit }: {
 		categories: Category[];
 		initial: ExpenseDraft;
 		submitting: boolean;
 		error: string;
 		submitLabel?: string;
 		onCancel?: () => void;
+		onDirty?: () => void;
 		onSubmit: (draft: ExpenseDraft) => Promise<boolean>;
 	} = $props();
 
@@ -35,7 +36,7 @@
 	}
 </script>
 
-<form class="form-stack" onsubmit={submit}>
+<form class="form-stack" oninput={onDirty} onsubmit={submit}>
 	<label class="field">
 		What was it?
 		<input bind:value={title} maxlength="120" placeholder="Coffee" autocomplete="off" required />

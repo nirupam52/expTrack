@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { get } from '$lib/api/client';
 	import { dashboardSchema, type Category, type Dashboard } from '$lib/api/types';
+	import { categoryShares } from '$lib/utils/category-shares';
 	import { formatCurrency } from '$lib/utils/format-currency';
 
 	let { categories, defaultCurrency, onAddExpense, onViewHistory, onViewCategory }: {
@@ -18,6 +19,7 @@
 	let error = $state('');
 	let categoryNames = $derived(new Map(categories.map((category) => [category.id, category.name])));
 	let currency = $derived(dashboard?.currencies.find((item) => item.currency === selectedCurrency) ?? null);
+	let selectedCategoryShares = $derived.by(() => currency ? categoryRows(currency.categories) : []);
 
 	onMount(() => void load());
 
@@ -37,10 +39,9 @@
 		}
 	}
 
-	function share(amountMinor: string, totalMinor: string) {
-		const amount = BigInt(amountMinor);
-		const total = BigInt(totalMinor);
-		return total === 0n ? 0 : Number((amount * 100n + total / 2n) / total);
+	function categoryRows(categories: { categoryId: number; amountMinor: string }[]) {
+		const shares = categoryShares(categories.map((item) => item.amountMinor));
+		return categories.map((category, index) => ({ category, share: shares[index] }));
 	}
 
 	function monthName(month: string) {
@@ -71,11 +72,11 @@
 			<section class="breakdown" aria-labelledby="breakdown-title">
 				<h2 id="breakdown-title">Where it went</h2>
 				<div class="spending-ribbon" aria-label="Category shares">
-					{#each currency.categories as item (item.categoryId)}<span style:--amount={item.amountMinor}></span>{/each}
+					{#each selectedCategoryShares as item (item.category.categoryId)}<span style:--amount={item.category.amountMinor}></span>{/each}
 				</div>
 				<ul class="category-list">
-					{#each currency.categories as item (item.categoryId)}
-						<li><button onclick={() => onViewCategory(item.categoryId, month, currency.currency)}><span>{categoryNames.get(item.categoryId) ?? 'Unknown category'} <b aria-hidden="true">&gt;</b></span><strong>{formatCurrency({ amountMinor: item.amountMinor, currency: currency.currency })}</strong><em>{share(item.amountMinor, currency.totalMinor)}%</em></button></li>
+					{#each selectedCategoryShares as item (item.category.categoryId)}
+						<li><button onclick={() => onViewCategory(item.category.categoryId, month, currency.currency)}><span>{categoryNames.get(item.category.categoryId) ?? 'Unknown category'} <b aria-hidden="true">&gt;</b></span><strong>{formatCurrency({ amountMinor: item.category.amountMinor, currency: currency.currency })}</strong><em>{item.share}%</em></button></li>
 					{/each}
 				</ul>
 			</section>

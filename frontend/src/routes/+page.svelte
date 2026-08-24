@@ -26,6 +26,7 @@
 		message: string;
 	};
 	type View = 'dashboard' | 'add' | 'history';
+	const emptyHistoryFilters: ExpenseHistoryFilters = { query: '', categoryId: null, currency: '', from: '', to: '' };
 
 	let session = $state<Session | null>(null);
 	let categories = $state.raw<Category[]>([]);
@@ -37,7 +38,8 @@
 	let editing = $state<Expense | null>(null);
 	let expenseVersion = $state(0);
 	let view = $state<View>('dashboard');
-	let historyFilters = $state<ExpenseHistoryFilters>({ query: '', categoryId: null, currency: '', from: '', to: '' });
+	let formDirty = $state(false);
+	let historyFilters = $state<ExpenseHistoryFilters>({ ...emptyHistoryFilters });
 	let toast = $state<Toast | null>(null);
 	let toastSequence = 0;
 
@@ -94,6 +96,7 @@
 		try {
 			await post('/api/expenses', draft, expenseSchema);
 			expenseVersion += 1;
+			formDirty = false;
 			return true;
 		} catch (cause) {
 			error = expenseError(cause, 'Could not save the expense. Please try again.');
@@ -110,6 +113,7 @@
 		try {
 			await put(`/api/expenses/${editing.id}`, draft, expenseSchema);
 			expenseVersion += 1;
+			formDirty = false;
 			return true;
 		} catch (cause) {
 			error = expenseError(cause, 'Could not update the expense. Please try again.');
@@ -150,6 +154,7 @@
 	}
 
 	async function signOut() {
+		if (!canLeaveForm()) return;
 		signOutError = '';
 		try {
 			await post('/api/auth/logout', null);
@@ -162,14 +167,30 @@
 	}
 
 	function viewHistory(filters: Partial<ExpenseHistoryFilters> = {}) {
-		historyFilters = { query: '', categoryId: null, currency: '', from: '', to: '', ...filters };
+		if (!canLeaveForm()) return;
+		historyFilters = { ...emptyHistoryFilters, ...filters };
+		editing = null;
+		formDirty = false;
 		view = 'history';
 	}
 
 	function startAddExpense() {
+		if (view === 'add') return;
 		editing = null;
 		error = '';
+		formDirty = false;
 		view = 'add';
+	}
+
+	function viewDashboard() {
+		if (!canLeaveForm()) return;
+		editing = null;
+		formDirty = false;
+		view = 'dashboard';
+	}
+
+	function canLeaveForm() {
+		return view !== 'add' || !formDirty || window.confirm('Discard the changes to this expense?');
 	}
 
 	function monthEnd(month: string) {
@@ -205,12 +226,12 @@
 		{:else if view === 'add'}
 			<section class="ledger" aria-labelledby="add-expense-title">
 				<div class="heading"><div><p class="eyebrow">{editing ? 'Correction' : 'Your ledger'}</p><h1 id="add-expense-title">{editing ? 'Edit expense' : 'Add an expense'}</h1></div><p>{editing?.currency ?? session.defaultCurrency}</p></div>
-				{#if editing}{#key editing.id}<ExpenseForm {categories} initial={{ title: editing.title, amount: amountForInput(editing), categoryId: editing.categoryId, date: editing.date, note: editing.note ?? '' }} {submitting} {error} submitLabel="Save changes" onCancel={() => { editing = null; error = ''; view = 'history'; }} onSubmit={updateExpense} />{/key}{:else}<ExpenseForm {categories} initial={{ title: '', amount: '', categoryId: categories[0]?.id ?? null, date: today(), note: '' }} {submitting} {error} onSubmit={addExpense} />{/if}
+				{#if editing}{#key editing.id}<ExpenseForm {categories} initial={{ title: editing.title, amount: amountForInput(editing), categoryId: editing.categoryId, date: editing.date, note: editing.note ?? '' }} {submitting} {error} submitLabel="Save changes" onCancel={() => { editing = null; error = ''; formDirty = false; view = 'history'; }} onDirty={() => formDirty = true} onSubmit={updateExpense} />{/key}{:else}<ExpenseForm {categories} initial={{ title: '', amount: '', categoryId: categories[0]?.id ?? null, date: today(), note: '' }} {submitting} {error} onDirty={() => formDirty = true} onSubmit={addExpense} />{/if}
 			</section>
 		{:else}
 			{#key `${historyFilters.query}-${historyFilters.categoryId}-${historyFilters.currency}-${historyFilters.from}-${historyFilters.to}`}<ExpenseHistory {categories} initialFilters={historyFilters} reloadVersion={expenseVersion} onEdit={(expense) => { editing = expense; error = ''; view = 'add'; }} onDelete={deleteExpense} />{/key}
 		{/if}
-		<nav class="bottom-nav" aria-label="Main navigation"><button class={{ active: view === 'dashboard' }} aria-current={view === 'dashboard' ? 'page' : undefined} onclick={() => { view = 'dashboard'; editing = null; }}>Dashboard</button><button class={{ active: view === 'add' }} aria-current={view === 'add' ? 'page' : undefined} onclick={startAddExpense}>Add expense</button><button class={{ active: view === 'history' }} aria-current={view === 'history' ? 'page' : undefined} onclick={() => viewHistory()}>History</button></nav>
+		<nav class="bottom-nav" aria-label="Main navigation"><button class={{ active: view === 'dashboard' }} aria-current={view === 'dashboard' ? 'page' : undefined} onclick={viewDashboard}>Dashboard</button><button class={{ active: view === 'add' }} aria-current={view === 'add' ? 'page' : undefined} onclick={startAddExpense}>Add expense</button><button class={{ active: view === 'history' }} aria-current={view === 'history' ? 'page' : undefined} onclick={() => viewHistory()}>History</button></nav>
 		{#if toast}<p class:toast-error={toast.kind === 'error'} class="toast" role={toast.kind === 'error' ? 'alert' : 'status'}>{toast.message}</p>{/if}
 	{/if}
 </main>
