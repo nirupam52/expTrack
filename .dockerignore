@@ -8,3 +8,7 @@ frontend/.svelte-kit
 frontend/build
 backend/target
 backend/*.db
+.env
+.env.*
+**/.env
+**/.env.*

@@ -10,10 +10,12 @@ services:
       - "-Dspring-boot.run.jvmArguments=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
     environment:
       EXPTRACK_SESSION_COOKIE_SECURE: "false"
+      EXPTRACK_DATABASE_PATH: /data/exptrack.db
     ports:
-      - "5005:5005"
+      - "127.0.0.1:5005:5005"
     volumes:
       - ./backend:/app
+      - debug-expense-data:/data
       - maven-cache:/root/.m2
     develop:
       watch:
@@ -28,6 +30,7 @@ services:
     build:
       context: .
       target: frontend-development
+    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0"
     ports:
       - "5173:5173"
     environment:
@@ -38,5 +41,6 @@ services:
       - frontend-node-modules:/app/node_modules
 
 volumes:
+  debug-expense-data:
   frontend-node-modules:
   maven-cache:
