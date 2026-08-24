@@ -12,7 +12,7 @@ Open http://localhost:8080. Data persists in Docker's `expense-data` volume.
 
 The production service listens on the host loopback interface only. Run a TLS reverse proxy on the same host to provide public HTTPS access.
 
-The container repairs ownership of the SQLite database files at start, then runs the app as the unprivileged `exptrack` user. This keeps existing `expense-data` volumes usable after upgrades.
+The app runs as the unprivileged `exptrack` user. Existing `expense-data` volumes must be owned by user and group `10001`.
 
 ## Develop
 
