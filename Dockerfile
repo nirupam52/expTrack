@@ -28,12 +28,10 @@ WORKDIR /app
 RUN addgroup -S -g 10001 exptrack \
 	&& adduser -S -D -H -u 10001 -G exptrack exptrack \
 	&& mkdir /data \
-	&& chown exptrack:exptrack /data \
-	&& apk add --no-cache su-exec
+	&& chown exptrack:exptrack /data
 COPY --from=backend-build --chown=exptrack:exptrack /app/target/backend-*.jar app.jar
-COPY --chmod=755 docker-entrypoint.sh .
 ENV EXPTRACK_DATABASE_PATH=/data/exptrack.db
 EXPOSE 8080
-# Repair mounted-volume ownership, then start the app as a non-root user.
-ENTRYPOINT ["./docker-entrypoint.sh"]
+# Run the application without root privileges.
+USER exptrack
 CMD ["java", "-jar", "app.jar"]
