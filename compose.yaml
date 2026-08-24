@@ -9,11 +9,6 @@ services:
       - /tmp:mode=1777,nosuid,nodev,size=64m
     cap_drop:
       - ALL
-    # The entrypoint needs these only to repair a mounted data volume.
-    cap_add:
-      - CHOWN
-      - SETGID
-      - SETUID
     security_opt:
       - no-new-privileges:true
     healthcheck:
