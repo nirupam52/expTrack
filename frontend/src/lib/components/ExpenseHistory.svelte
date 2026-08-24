@@ -11,18 +11,20 @@
 		to: string;
 	};
 
-	let { categories, reloadVersion, onEdit, onDelete }: {
+	let { categories, initialFilters, reloadVersion, onEdit, onDelete }: {
 		categories: Category[];
+		initialFilters: HistoryFilters;
 		reloadVersion: number;
 		onEdit: (expense: Expense) => void;
 		onDelete: (expense: Expense) => Promise<boolean>;
 	} = $props();
 
-	let query = $state('');
-	let categoryId = $state<number | null>(null);
-	let from = $state('');
-	let to = $state('');
-	let applied = $state<HistoryFilters>({ query: '', categoryId: null, from: '', to: '' });
+	const filters = untrack(() => ({ ...initialFilters }));
+	let query = $state(filters.query);
+	let categoryId = $state<number | null>(filters.categoryId);
+	let from = $state(filters.from);
+	let to = $state(filters.to);
+	let applied = $state<HistoryFilters>(filters);
 	let expenses = $state.raw<Expense[]>([]);
 	let nextCursor = $state<string | null>(null);
 	let loading = $state(false);
