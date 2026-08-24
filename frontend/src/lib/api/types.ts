@@ -45,6 +45,13 @@ export type Category = z.infer<typeof categorySchema>;
 export type Session = z.infer<typeof sessionSchema>;
 export type Expense = z.infer<typeof expenseSchema>;
 export type Dashboard = z.infer<typeof dashboardSchema>;
+export type ExpenseHistoryFilters = {
+	query: string;
+	categoryId: number | null;
+	currency: string;
+	from: string;
+	to: string;
+};
 
 export type AuthSubmission = {
 	mode: 'sign-in' | 'register';

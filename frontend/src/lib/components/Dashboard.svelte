@@ -9,7 +9,7 @@
 		defaultCurrency: string;
 		onAddExpense: () => void;
 		onViewHistory: () => void;
-		onViewCategory: (categoryId: number, month: string) => void;
+		onViewCategory: (categoryId: number, month: string, currency: string) => void;
 	} = $props();
 
 	let dashboard = $state.raw<Dashboard | null>(null);
@@ -51,7 +51,7 @@
 
 <section class="dashboard" aria-labelledby="dashboard-title">
 	{#if loading && !dashboard}
-		<p class="status">Loading your dashboardâ€¦</p>
+		<p class="status">Loading your dashboard...</p>
 	{:else if error && !dashboard}
 		<div class="dashboard-message"><p class="error" role="alert">{error}</p><button class="primary" onclick={() => void load()}>Retry</button></div>
 	{:else if dashboard}
@@ -71,11 +71,11 @@
 			<section class="breakdown" aria-labelledby="breakdown-title">
 				<h2 id="breakdown-title">Where it went</h2>
 				<div class="spending-ribbon" aria-label="Category shares">
-					{#each currency.categories as item (item.categoryId)}<span style:--share={`${share(item.amountMinor, currency.totalMinor)}%`}></span>{/each}
+					{#each currency.categories as item (item.categoryId)}<span style:--amount={item.amountMinor}></span>{/each}
 				</div>
 				<ul class="category-list">
 					{#each currency.categories as item (item.categoryId)}
-						<li><button onclick={() => onViewCategory(item.categoryId, month)}><span>{categoryNames.get(item.categoryId) ?? 'Unknown category'} <b aria-hidden="true">â€º</b></span><strong>{formatCurrency({ amountMinor: item.amountMinor, currency: currency.currency })}</strong><em>{share(item.amountMinor, currency.totalMinor)}%</em></button></li>
+						<li><button onclick={() => onViewCategory(item.categoryId, month, currency.currency)}><span>{categoryNames.get(item.categoryId) ?? 'Unknown category'} <b aria-hidden="true">&gt;</b></span><strong>{formatCurrency({ amountMinor: item.amountMinor, currency: currency.currency })}</strong><em>{share(item.amountMinor, currency.totalMinor)}%</em></button></li>
 					{/each}
 				</ul>
 			</section>
@@ -84,9 +84,9 @@
 		{/if}
 
 		<section class="recent-expenses" aria-labelledby="recent-title">
-			<div class="section-heading"><h2 id="recent-title">Latest expenses</h2><button class="quiet link-button" onclick={onViewHistory}>See all <span aria-hidden="true">â€º</span></button></div>
+			<div class="section-heading"><h2 id="recent-title">Latest expenses</h2><button class="quiet link-button" onclick={onViewHistory}>See all <span aria-hidden="true">&gt;</span></button></div>
 			{#if dashboard.recentExpenses.length}
-				<ul>{#each dashboard.recentExpenses as expense (expense.id)}<li><div><strong>{expense.title}</strong><span>{categoryNames.get(expense.categoryId) ?? 'Unknown category'} Â· {expense.date}</span></div><b>{formatCurrency(expense)}</b></li>{/each}</ul>
+				<ul>{#each dashboard.recentExpenses as expense (expense.id)}<li><div><strong>{expense.title}</strong><span>{categoryNames.get(expense.categoryId) ?? 'Unknown category'} - {expense.date}</span></div><b>{formatCurrency(expense)}</b></li>{/each}</ul>
 			{:else}<p class="empty">No expenses yet.</p>{/if}
 		</section>
 	{/if}
@@ -108,7 +108,7 @@
 	.month-total span { color: #c5d6d1; font-size: .85rem; font-weight: 700; }
 	.breakdown { display: grid; gap: 1rem; }
 	.spending-ribbon { display: flex; height: .65rem; overflow: hidden; }
-	.spending-ribbon span { background: #54d2a0; flex: 0 0 var(--share); min-width: 1px; }
+	.spending-ribbon span { background: #54d2a0; flex: var(--amount) 1 0; }
 	.spending-ribbon span:nth-child(2) { background: #72a7ff; }
 	.spending-ribbon span:nth-child(3) { background: #f3a553; }
 	.spending-ribbon span:nth-child(4) { background: #de8ee8; }

@@ -1,19 +1,12 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { get } from '$lib/api/client';
-	import { expensePageSchema, type Category, type Expense } from '$lib/api/types';
+	import { expensePageSchema, type Category, type Expense, type ExpenseHistoryFilters } from '$lib/api/types';
 	import { formatCurrency } from '$lib/utils/format-currency';
-
-	type HistoryFilters = {
-		query: string;
-		categoryId: number | null;
-		from: string;
-		to: string;
-	};
 
 	let { categories, initialFilters, reloadVersion, onEdit, onDelete }: {
 		categories: Category[];
-		initialFilters: HistoryFilters;
+		initialFilters: ExpenseHistoryFilters;
 		reloadVersion: number;
 		onEdit: (expense: Expense) => void;
 		onDelete: (expense: Expense) => Promise<boolean>;
@@ -22,9 +15,10 @@
 	const filters = untrack(() => ({ ...initialFilters }));
 	let query = $state(filters.query);
 	let categoryId = $state<number | null>(filters.categoryId);
+	let currency = $state(filters.currency);
 	let from = $state(filters.from);
 	let to = $state(filters.to);
-	let applied = $state<HistoryFilters>(filters);
+	let applied = $state<ExpenseHistoryFilters>(filters);
 	let expenses = $state.raw<Expense[]>([]);
 	let nextCursor = $state<string | null>(null);
 	let loading = $state(false);
@@ -34,7 +28,7 @@
 	let loadVersion = 0;
 	let deleteDialog = $state<HTMLDialogElement>();
 	let categoryNames = $derived(new Map(categories.map((category) => [category.id, category.name])));
-	let filtersActive = $derived(applied.query.length > 0 || applied.categoryId !== null || applied.from.length > 0 || applied.to.length > 0);
+	let filtersActive = $derived(applied.query.length > 0 || applied.categoryId !== null || applied.currency.length > 0 || applied.from.length > 0 || applied.to.length > 0);
 
 	$effect(() => {
 		reloadVersion;
@@ -51,6 +45,7 @@
 		const parameters = new URLSearchParams();
 		if (applied.query) parameters.set('query', applied.query);
 		if (applied.categoryId !== null) parameters.set('categoryId', String(applied.categoryId));
+		if (applied.currency) parameters.set('currency', applied.currency);
 		if (applied.from) parameters.set('from', applied.from);
 		if (applied.to) parameters.set('to', applied.to);
 		if (cursor) parameters.set('cursor', cursor);
@@ -77,16 +72,17 @@
 
 	function applyFilters(event: SubmitEvent) {
 		event.preventDefault();
-		applied = { query: query.trim(), categoryId, from, to };
+		applied = { query: query.trim(), categoryId, currency, from, to };
 		void load(null, false);
 	}
 
 	function clearFilters() {
 		query = '';
 		categoryId = null;
+		currency = '';
 		from = '';
 		to = '';
-		applied = { query: '', categoryId: null, from: '', to: '' };
+		applied = { query: '', categoryId: null, currency: '', from: '', to: '' };
 		void load(null, false);
 	}
 
@@ -109,12 +105,12 @@
 <section class="history" aria-labelledby="history-title">
 	<div class="heading">
 		<div><p class="eyebrow">Your ledger</p><h2 id="history-title">Expense history</h2></div>
-		<p>{expenses.length} shown</p>
+		<p>{applied.currency ? `${applied.currency} - ` : ''}{expenses.length} shown</p>
 	</div>
 	<form class="history-filters" onsubmit={applyFilters}>
 		<label class="field search-field">Search title or note<input bind:value={query} maxlength="500" placeholder="Coffee, train fare…" /></label>
 		<div class="filter-pair">
-			<label class="field">Category<select bind:value={categoryId}><option value={null}>All categories</option>{#each categories as item (item.id)}<option value={item.id}>{item.name}</option>{/each}</select></label>
+		<label class="field">Category<select bind:value={categoryId}><option value={null}>All categories</option>{#each categories as item (item.id)}<option value={item.id}>{item.name}</option>{/each}</select></label>
 			<label class="field">From<input bind:value={from} type="date" max={to || undefined} /></label>
 			<label class="field">To<input bind:value={to} type="date" min={from || undefined} /></label>
 		</div>

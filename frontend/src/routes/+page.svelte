@@ -10,6 +10,7 @@
 		type Category,
 		type Expense,
 		type ExpenseDraft,
+		type ExpenseHistoryFilters,
 		type Session
 	} from '$lib/api/types';
 	import AuthForm from '$lib/components/AuthForm.svelte';
@@ -25,7 +26,6 @@
 		message: string;
 	};
 	type View = 'dashboard' | 'add' | 'history';
-	type HistoryFilters = { query: string; categoryId: number | null; from: string; to: string };
 
 	let session = $state<Session | null>(null);
 	let categories = $state.raw<Category[]>([]);
@@ -37,7 +37,7 @@
 	let editing = $state<Expense | null>(null);
 	let expenseVersion = $state(0);
 	let view = $state<View>('dashboard');
-	let historyFilters = $state<HistoryFilters>({ query: '', categoryId: null, from: '', to: '' });
+	let historyFilters = $state<ExpenseHistoryFilters>({ query: '', categoryId: null, currency: '', from: '', to: '' });
 	let toast = $state<Toast | null>(null);
 	let toastSequence = 0;
 
@@ -161,8 +161,8 @@
 		}
 	}
 
-	function viewHistory(filters: Partial<HistoryFilters> = {}) {
-		historyFilters = { query: '', categoryId: null, from: '', to: '', ...filters };
+	function viewHistory(filters: Partial<ExpenseHistoryFilters> = {}) {
+		historyFilters = { query: '', categoryId: null, currency: '', from: '', to: '', ...filters };
 		view = 'history';
 	}
 
@@ -201,14 +201,14 @@
 		<AuthForm {submitting} {error} onSubmit={authenticate} onModeChange={() => error = ''} />
 	{:else}
 		{#if view === 'dashboard'}
-			<Dashboard {categories} defaultCurrency={session.defaultCurrency} onAddExpense={startAddExpense} onViewHistory={() => viewHistory()} onViewCategory={(categoryId, month) => viewHistory({ categoryId, from: `${month}-01`, to: monthEnd(month) })} />
+			<Dashboard {categories} defaultCurrency={session.defaultCurrency} onAddExpense={startAddExpense} onViewHistory={() => viewHistory()} onViewCategory={(categoryId, month, currency) => viewHistory({ categoryId, currency, from: `${month}-01`, to: monthEnd(month) })} />
 		{:else if view === 'add'}
 			<section class="ledger" aria-labelledby="add-expense-title">
 				<div class="heading"><div><p class="eyebrow">{editing ? 'Correction' : 'Your ledger'}</p><h1 id="add-expense-title">{editing ? 'Edit expense' : 'Add an expense'}</h1></div><p>{editing?.currency ?? session.defaultCurrency}</p></div>
 				{#if editing}{#key editing.id}<ExpenseForm {categories} initial={{ title: editing.title, amount: amountForInput(editing), categoryId: editing.categoryId, date: editing.date, note: editing.note ?? '' }} {submitting} {error} submitLabel="Save changes" onCancel={() => { editing = null; error = ''; view = 'history'; }} onSubmit={updateExpense} />{/key}{:else}<ExpenseForm {categories} initial={{ title: '', amount: '', categoryId: categories[0]?.id ?? null, date: today(), note: '' }} {submitting} {error} onSubmit={addExpense} />{/if}
 			</section>
 		{:else}
-			{#key `${historyFilters.query}-${historyFilters.categoryId}-${historyFilters.from}-${historyFilters.to}`}<ExpenseHistory {categories} initialFilters={historyFilters} reloadVersion={expenseVersion} onEdit={(expense) => { editing = expense; error = ''; view = 'add'; }} onDelete={deleteExpense} />{/key}
+			{#key `${historyFilters.query}-${historyFilters.categoryId}-${historyFilters.currency}-${historyFilters.from}-${historyFilters.to}`}<ExpenseHistory {categories} initialFilters={historyFilters} reloadVersion={expenseVersion} onEdit={(expense) => { editing = expense; error = ''; view = 'add'; }} onDelete={deleteExpense} />{/key}
 		{/if}
 		<nav class="bottom-nav" aria-label="Main navigation"><button class={{ active: view === 'dashboard' }} aria-current={view === 'dashboard' ? 'page' : undefined} onclick={() => { view = 'dashboard'; editing = null; }}>Dashboard</button><button class={{ active: view === 'add' }} aria-current={view === 'add' ? 'page' : undefined} onclick={startAddExpense}>Add expense</button><button class={{ active: view === 'history' }} aria-current={view === 'history' ? 'page' : undefined} onclick={() => viewHistory()}>History</button></nav>
 		{#if toast}<p class:toast-error={toast.kind === 'error'} class="toast" role={toast.kind === 'error' ? 'alert' : 'status'}>{toast.message}</p>{/if}
