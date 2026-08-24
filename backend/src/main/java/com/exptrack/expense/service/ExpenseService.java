@@ -5,11 +5,18 @@ import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.time.DateTimeException;
 import java.time.LocalDate;
+import java.time.YearMonth;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Currency;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.exptrack.category.service.CategoryService;
+import com.exptrack.expense.dto.DashboardCategoryResponse;
+import com.exptrack.expense.dto.DashboardCurrencyResponse;
+import com.exptrack.expense.dto.DashboardResponse;
 import com.exptrack.expense.dto.ExpenseHistoryRequest;
 import com.exptrack.expense.dto.ExpensePageResponse;
 import com.exptrack.expense.dto.ExpenseRequest;
@@ -17,6 +24,7 @@ import com.exptrack.expense.dto.ExpenseResponse;
 import com.exptrack.expense.entity.Expense;
 import com.exptrack.expense.entity.ExpenseDetails;
 import com.exptrack.expense.repository.ExpenseRepository;
+import com.exptrack.expense.repository.DashboardCategoryTotal;
 import com.exptrack.expense.repository.ExpenseHistoryQuery;
 import com.exptrack.user.entity.UserAccount;
 import com.exptrack.user.repository.UserAccountRepository;
@@ -55,6 +63,18 @@ public class ExpenseService {
 		boolean hasMore = matches.size() > limit;
 		List<ExpenseResponse> items = matches.stream().limit(limit).map(this::response).toList();
 		return new ExpensePageResponse(items, hasMore ? encodeCursor(matches.get(limit - 1)) : null);
+	}
+
+	public DashboardResponse dashboard(String email) {
+		UserAccount user = currentUser(email);
+		YearMonth month = YearMonth.now();
+		Map<String, List<DashboardCategoryTotal>> totalsByCurrency = new LinkedHashMap<>();
+		for (DashboardCategoryTotal total : expenses.findDashboardCategoryTotals(user.getId(), month.atDay(1), month.plusMonths(1).atDay(1))) {
+			totalsByCurrency.computeIfAbsent(total.getCurrency(), ignored -> new ArrayList<>()).add(total);
+		}
+		List<DashboardCurrencyResponse> currencies = totalsByCurrency.entrySet().stream().map(this::currencyResponse).toList();
+		List<ExpenseResponse> recentExpenses = expenses.findTop5ByUserIdOrderByExpenseDateDescIdDesc(user.getId()).stream().map(this::response).toList();
+		return new DashboardResponse(month.toString(), currencies, recentExpenses);
 	}
 
 	@Transactional
@@ -153,5 +173,12 @@ public class ExpenseService {
 	private ExpenseResponse response(Expense expense) {
 		return new ExpenseResponse(expense.getId(), expense.getTitle(), Long.toString(expense.getAmountMinor()), expense.getCategoryId(),
 				expense.getExpenseDate(), expense.getCurrency(), expense.getNote());
+	}
+
+	private DashboardCurrencyResponse currencyResponse(Map.Entry<String, List<DashboardCategoryTotal>> entry) {
+		long total = entry.getValue().stream().mapToLong(DashboardCategoryTotal::getAmountMinor).sum();
+		List<DashboardCategoryResponse> categories = entry.getValue().stream()
+				.map(value -> new DashboardCategoryResponse(value.getCategoryId(), Long.toString(value.getAmountMinor()))).toList();
+		return new DashboardCurrencyResponse(entry.getKey(), Long.toString(total), categories);
 	}
 }

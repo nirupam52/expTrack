@@ -24,6 +24,26 @@ The calendar date a user attributes to an expense. It represents when the outflo
 
 The personal, date-ordered list of a user's expenses. It can be narrowed by title or note text, category, and an inclusive expense-date range.
 
+## Dashboard
+
+The signed-in landing page. It summarizes current-month spending and gives direct access to recording an expense and viewing expense history.
+
+## Category breakdown
+
+A current-month dashboard summary of spending by category in the selected dashboard currency. Each category shows its amount and its share of that currency's total.
+
+## Dashboard currency selection
+
+The recorded currency summarized by the dashboard. The dashboard shows a currency switch only when current-month expenses use more than one currency; otherwise it shows the sole current-month currency without a switch.
+
+## Category drill-down
+
+Opening expense history from a dashboard category with that category and the current month already selected as filters.
+
+## Recent expenses
+
+Up to five most recent expenses shown on the dashboard, ordered by expense date and then record ID. They can be from an earlier month. View history opens the full expense history.
+
 ## Recorded currency
 
 The ISO currency captured with an expense when it is created. It remains the expense's currency when the user's default currency changes or the expense is edited.
