@@ -7,13 +7,16 @@
 		"dev": "vite dev",
 		"build": "vite build",
 		"preview": "vite preview",
+		"preview:browser": "vite preview --host 127.0.0.1 --port 4174",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"test:currency": "node --experimental-strip-types --test src/lib/utils/format-currency.test.ts",
-		"test:utils": "node --experimental-strip-types --test src/lib/utils/*.test.ts"
+		"test:utils": "node --experimental-strip-types --test src/lib/utils/*.test.ts",
+		"test:browser": "npm run build && playwright test"
 	},
 	"devDependencies": {
+		"@playwright/test": "^1.62.1",
 		"@sveltejs/adapter-auto": "~7.0.1",
 		"@sveltejs/adapter-static": "~3.0.10",
 		"@sveltejs/kit": "~2.70.2",

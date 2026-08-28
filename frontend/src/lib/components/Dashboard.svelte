@@ -60,7 +60,7 @@
 		<div class="dashboard-heading">
 			<div><p class="eyebrow">Monthly view</p><h1 id="dashboard-title">{monthName(month)}</h1><p class="intro">Your spending this month</p></div>
 			{#if dashboard.currencies.length > 1}
-				<label class="currency-picker"><span class="sr-only">Dashboard currency</span><select bind:value={selectedCurrency}>{#each dashboard.currencies as item (item.currency)}<option value={item.currency}>{item.currency}</option>{/each}</select></label>
+				<label class="currency-picker"><span class="sr-only">Dashboard currency</span><select aria-label={`Dashboard currency: ${selectedCurrency}`} bind:value={selectedCurrency}>{#each dashboard.currencies as item (item.currency)}<option value={item.currency}>{item.currency}</option>{/each}</select></label>
 			{:else if currency}<p class="currency-label">{currency.currency}</p>{/if}
 		</div>
 
@@ -76,7 +76,7 @@
 				</div>
 				<ul class="category-list">
 					{#each selectedCategoryShares as item (item.category.categoryId)}
-						<li><button onclick={() => onViewCategory(item.category.categoryId, month, currency.currency)}><span>{categoryNames.get(item.category.categoryId) ?? 'Unknown category'} <b aria-hidden="true">&gt;</b></span><strong>{formatCurrency({ amountMinor: item.category.amountMinor, currency: currency.currency })}</strong><em>{item.share}%</em></button></li>
+						<li><button aria-label={`View ${categoryNames.get(item.category.categoryId) ?? 'Unknown category'} expenses for ${monthName(month)} in ${currency.currency}`} onclick={() => onViewCategory(item.category.categoryId, month, currency.currency)}><span>{categoryNames.get(item.category.categoryId) ?? 'Unknown category'} <b aria-hidden="true">&gt;</b></span><strong>{formatCurrency({ amountMinor: item.category.amountMinor, currency: currency.currency })}</strong><em>{item.share}%</em></button></li>
 					{/each}
 				</ul>
 			</section>
@@ -85,7 +85,7 @@
 		{/if}
 
 		<section class="recent-expenses" aria-labelledby="recent-title">
-			<div class="section-heading"><h2 id="recent-title">Latest expenses</h2><button class="quiet link-button" onclick={onViewHistory}>See all <span aria-hidden="true">&gt;</span></button></div>
+			<div class="section-heading"><h2 id="recent-title">Latest expenses</h2><button aria-label="View all expense history" class="quiet link-button" onclick={onViewHistory}>See all <span aria-hidden="true">&gt;</span></button></div>
 			{#if dashboard.recentExpenses.length}
 				<ul>{#each dashboard.recentExpenses as expense (expense.id)}<li><div><strong>{expense.title}</strong><span>{categoryNames.get(expense.categoryId) ?? 'Unknown category'} - {expense.date}</span></div><b>{formatCurrency(expense)}</b></li>{/each}</ul>
 			{:else}<p class="empty">No expenses yet.</p>{/if}
@@ -101,7 +101,7 @@
 	.dashboard h2 { color: #f5f8f6; font-size: 1.1rem; letter-spacing: -.025em; }
 	.dashboard .eyebrow { color: #70cbaa; font-size: .69rem; font-weight: 800; letter-spacing: .14em; margin-bottom: .45rem; text-transform: uppercase; }
 	.intro { color: #a7bbb6; font-size: .94rem; margin-top: .55rem !important; }
-	.currency-picker select, .currency-label { background: #172927; border: 1px solid #45625c; border-radius: .35rem; color: #8cafFF; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .82rem; font-weight: 800; letter-spacing: .04em; min-height: 2.55rem; padding: .55rem 2rem .55rem .75rem; }
+	.currency-picker select, .currency-label { background: #172927; border: 1px solid #45625c; border-radius: .35rem; color: #8cafFF; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .82rem; font-weight: 800; letter-spacing: .04em; min-height: 2.75rem; padding: .55rem 2rem .55rem .75rem; }
 	.currency-label { border-color: #45625c; color: #b8cac6; margin-bottom: .1rem !important; }
 	.month-total { background: #203734; border: 1px solid #54d2a0; display: grid; gap: .55rem; padding: 1.25rem; }
 	.month-total p { color: #d6e5e0; font-size: .71rem; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
@@ -116,14 +116,14 @@
 	.spending-ribbon span:nth-child(n + 5) { background: #a7bbb6; }
 	.category-list, .recent-expenses ul { list-style: none; margin: 0; padding: 0; }
 	.category-list { display: grid; gap: .12rem; }
-	.category-list button { align-items: center; background: transparent; border: 0; color: #f5f8f6; cursor: pointer; display: grid; font: inherit; gap: .75rem; grid-template-columns: 1fr auto auto; padding: .55rem 0; text-align: left; width: 100%; }
+	.category-list button { align-items: center; background: transparent; border: 0; color: #f5f8f6; cursor: pointer; display: grid; font: inherit; gap: .75rem; grid-template-columns: 1fr auto auto; min-height: 2.75rem; padding: .55rem 0; text-align: left; width: 100%; }
 	.category-list button:hover span, .category-list button:focus-visible span { color: #70cbaa; }
 	.category-list span { font-size: .9rem; font-weight: 700; }
 	.category-list span b { color: #72a7ff; font-size: 1.35rem; line-height: .5; margin-left: .15rem; }
 	.category-list strong, .category-list em, .recent-expenses b { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .84rem; font-style: normal; font-variant-numeric: tabular-nums; white-space: nowrap; }
 	.category-list em { color: #b8cac6; min-width: 2.25rem; text-align: right; }
 	.recent-expenses { border-top: 1px solid #334b47; display: grid; gap: .9rem; padding-top: 1.25rem; }
-	.link-button { align-items: center; display: inline-flex; gap: .2rem; }
+	.link-button { align-items: center; display: inline-flex; gap: .2rem; min-height: 2.75rem; }
 	.recent-expenses ul { display: grid; gap: .45rem; }
 	.recent-expenses li { align-items: center; background: #172725; border: 1px solid #3a5751; display: flex; gap: 1rem; justify-content: space-between; padding: .75rem .8rem; }
 	.recent-expenses li div { min-width: 0; }
