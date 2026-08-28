@@ -21,7 +21,7 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
           node-version: 24
@@ -39,10 +39,27 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "21"
           cache: maven
       - run: mvn -B verify
+
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - name: Verify production Compose service
+        run: |
+          trap 'docker compose logs || true' ERR
+          trap 'docker compose down --volumes --remove-orphans' EXIT
+          docker compose down --volumes --remove-orphans
+          docker compose up --build --wait --wait-timeout 120
+          container_id="$(docker compose ps -q app)"
+          docker compose exec -T app awk '/^Uid:/ { exit $2 != 0 ? 0 : 1 }' /proc/1/status
+          test "$(docker inspect --format '{{.HostConfig.ReadonlyRootfs}}' "$container_id")" = true
+          docker compose exec -T app awk '/^CapEff:/ { exit $2 == "0000000000000000" ? 0 : 1 }' /proc/1/status
+          docker compose exec -T app awk '/^NoNewPrivs:/ { exit $2 == 1 ? 0 : 1 }' /proc/1/status
