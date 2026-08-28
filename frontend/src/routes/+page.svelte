@@ -203,7 +203,7 @@
 
 <main class="app">
 	<header>
-		<a class="brand" href={resolve('/')}>ExpTrack</a>
+		<a class="brand" href={resolve('/')} onclick={(event) => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); viewDashboard(); }}>ExpTrack</a>
 		{#if session}
 			<button class="quiet" onclick={signOut}>Sign out</button>
 			{#if signOutError}<p class="error" role="alert">{signOutError}</p>{/if}
