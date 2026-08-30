@@ -4,6 +4,7 @@ import java.security.Principal;
 
 import com.exptrack.expense.dto.ExpenseHistoryRequest;
 import com.exptrack.expense.dto.ExpensePageResponse;
+import com.exptrack.expense.dto.DashboardResponse;
 import com.exptrack.expense.dto.ExpenseRequest;
 import com.exptrack.expense.dto.ExpenseResponse;
 import com.exptrack.expense.service.ExpenseService;
@@ -34,6 +35,11 @@ public class ExpenseController {
 	@GetMapping
 	ExpensePageResponse history(@Valid @ModelAttribute ExpenseHistoryRequest request, Principal principal) {
 		return expenses.history(request, principal.getName());
+	}
+
+	@GetMapping("/dashboard")
+	DashboardResponse dashboard(Principal principal) {
+		return expenses.dashboard(principal.getName());
 	}
 
 	@PostMapping

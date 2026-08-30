@@ -23,7 +23,11 @@ RUN --mount=type=cache,target=/root/.m2 mvn package -DskipTests -q
 
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
-RUN addgroup -S exptrack && adduser -S -G exptrack exptrack && mkdir /data && chown exptrack:exptrack /data
+# Keep the SQLite volume owner stable across image updates.
+RUN addgroup -S -g 10001 exptrack \
+	&& adduser -S -D -H -u 10001 -G exptrack exptrack \
+	&& mkdir /data \
+	&& chown exptrack:exptrack /data
 COPY --from=backend-build --chown=exptrack:exptrack /app/target/backend-*.jar app.jar
 ENV EXPTRACK_DATABASE_PATH=/data/exptrack.db
 VOLUME /data

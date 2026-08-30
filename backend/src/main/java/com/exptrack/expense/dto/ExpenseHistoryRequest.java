@@ -9,6 +9,7 @@ import jakarta.validation.constraints.Size;
 public record ExpenseHistoryRequest(
 		@Size(max = 500) String query,
 		Integer categoryId,
+		String currency,
 		LocalDate from,
 		LocalDate to,
 		@Size(max = 64) String cursor,

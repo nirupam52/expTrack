@@ -58,6 +58,18 @@ class ExpenseWorkflowEndpointTest {
 	}
 
 	@Test
+	void historyFiltersByRecordedCurrency() throws Exception {
+		registerAndSignIn(browser, "history-currency@example.com", "USD");
+		post(browser, "/api/expenses", Map.of("title", "Dollar coffee", "amount", "4.50", "categoryId", 1, "date", "2026-08-04"));
+		jdbc.update("UPDATE users SET default_currency = ? WHERE email = ?", "EUR", "history-currency@example.com");
+		post(browser, "/api/expenses", Map.of("title", "Euro coffee", "amount", "4.50", "categoryId", 1, "date", "2026-08-04"));
+
+		JsonNode items = json.readTree(get("/api/expenses?currency=EUR").body()).get("items");
+		assertThat(items).hasSize(1);
+		assertThat(items.get(0).get("title").asText()).isEqualTo("Euro coffee");
+	}
+
+	@Test
 	void updatePreservesRecordedCurrencyAndDeleteIsOwnerScoped() throws Exception {
 		registerAndSignIn(browser, "mutation-ava@example.com", "USD");
 		HttpResponse<String> created = post(browser, "/api/expenses", Map.of("title", "Train", "amount", "9.50", "categoryId", 1, "date", "2026-08-04", "note", "Commute"));
@@ -92,6 +104,7 @@ class ExpenseWorkflowEndpointTest {
 
 		assertThat(get("/api/expenses?from=2026-08-31&to=2026-08-01").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 		assertThat(get("/api/expenses?categoryId=99").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+		assertThat(get("/api/expenses?currency=ZZZ").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 		assertThat(get("/api/expenses?cursor=not-a-cursor").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 		assertThat(get("/api/expenses?cursor=" + "a".repeat(65)).statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 		String invalidDateCursor = Base64.getUrlEncoder().withoutPadding()

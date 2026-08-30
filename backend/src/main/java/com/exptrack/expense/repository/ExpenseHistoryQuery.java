@@ -6,6 +6,7 @@ public record ExpenseHistoryQuery(
 		Integer userId,
 		String text,
 		Integer categoryId,
+		String currency,
 		LocalDate fromDate,
 		LocalDate toDate,
 		LocalDate cursorDate,

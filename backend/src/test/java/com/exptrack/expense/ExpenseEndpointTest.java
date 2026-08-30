@@ -5,6 +5,8 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.Map;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -31,6 +33,71 @@ class ExpenseEndpointTest {
 
 	@Autowired
 	private JdbcTemplate jdbc;
+
+	@Test
+	void dashboardGroupsCurrentMonthTotalsByRecordedCurrencyAndReturnsTheLatestFiveExpenses() throws Exception {
+		registerAndSignIn("dashboard-ava@example.com", "USD");
+		YearMonth currentMonth = YearMonth.now();
+		LocalDate first = currentMonth.atDay(1);
+		create(Map.of("title", "Groceries", "amount", "80.00", "categoryId", 1, "date", first.plusDays(1).toString()));
+		create(Map.of("title", "Train pass", "amount", "50.00", "categoryId", 2, "date", first.plusDays(2).toString()));
+		jdbc.update("UPDATE users SET default_currency = ? WHERE email = ?", "EUR", "dashboard-ava@example.com");
+		create(Map.of("title", "Museum", "amount", "12.00", "categoryId", 3, "date", first.plusDays(3).toString()));
+		create(Map.of("title", "Coffee", "amount", "4.50", "categoryId", 1, "date", first.plusDays(4).toString()));
+		create(Map.of("title", "Dinner", "amount", "25.00", "categoryId", 2, "date", first.plusDays(5).toString()));
+		create(Map.of("title", "Market", "amount", "28.00", "categoryId", 1, "date", first.plusDays(6).toString()));
+		create(Map.of("title", "Old expense", "amount", "999.00", "categoryId", 1, "date", first.minusDays(1).toString()));
+		HttpClient otherBrowser = newBrowser();
+		registerAndSignIn(otherBrowser, "dashboard-bea@example.com", "USD");
+		post(otherBrowser, "/api/expenses", Map.of("title", "Private expense", "amount", "300.00", "categoryId", 1, "date", first.plusDays(7).toString()));
+		HttpResponse<String> dashboard = browser.send(HttpRequest.newBuilder(URI.create(url("/api/expenses/dashboard"))).GET().build(), HttpResponse.BodyHandlers.ofString());
+		JsonNode body = json.readTree(dashboard.body());
+
+		assertThat(dashboard.statusCode()).isEqualTo(HttpStatus.OK.value());
+		assertThat(body.get("month").asText()).isEqualTo(currentMonth.toString());
+		assertThat(body.get("currencies")).extracting(node -> node.get("currency").asText()).containsExactly("EUR", "USD");
+		assertThat(body.get("currencies").get(0).get("totalMinor").asText()).isEqualTo("6950");
+		assertThat(body.get("currencies").get(0).get("categories")).extracting(node -> node.get("categoryId").asInt()).containsExactly(1, 2, 3);
+		assertThat(body.get("currencies").get(0).get("categories")).extracting(node -> node.get("amountMinor").asText()).containsExactly("3250", "2500", "1200");
+		assertThat(body.get("currencies").get(1).get("totalMinor").asText()).isEqualTo("13000");
+		assertThat(body.get("currencies").get(1).get("categories")).extracting(node -> node.get("categoryId").asInt()).containsExactly(1, 2);
+		assertThat(body.get("currencies").get(1).get("categories")).extracting(node -> node.get("amountMinor").asText()).containsExactly("8000", "5000");
+		assertThat(body.get("currencies").get(1).get("categories").get(0).get("amountMinor").asText()).isEqualTo("8000");
+		assertThat(body.get("recentExpenses")).hasSize(5);
+		assertThat(body.get("recentExpenses").get(0).get("title").asText()).isEqualTo("Market");
+		assertThat(body.get("recentExpenses").get(4).get("title").asText()).isEqualTo("Train pass");
+		assertThat(body.get("recentExpenses")).extracting(node -> node.get("title").asText()).doesNotContain("Private expense");
+	}
+
+	@Test
+	void dashboardKeepsTotalsExactBeyondTheLongRange() throws Exception {
+		registerAndSignIn("dashboard-overflow@example.com", "USD");
+		String date = YearMonth.now().atDay(1).toString();
+		Map<String, Object> expense = Map.of("title", "Large expense", "amount", "92233720368547758.07", "categoryId", 1, "date", date);
+		create(expense);
+		create(expense);
+		JsonNode body = json.readTree(browser.send(HttpRequest.newBuilder(URI.create(url("/api/expenses/dashboard"))).GET().build(), HttpResponse.BodyHandlers.ofString()).body());
+
+		assertThat(body.get("currencies").get(0).get("totalMinor").asText()).isEqualTo("18446744073709551614");
+		assertThat(body.get("currencies").get(0).get("categories").get(0).get("amountMinor").asText()).isEqualTo("18446744073709551614");
+	}
+
+	@Test
+	void dashboardHasNoCurrencySummaryWithoutCurrentMonthExpensesAndOrdersEqualDatesById() throws Exception {
+		registerAndSignIn("dashboard-empty@example.com", "USD");
+		String date = YearMonth.now().atDay(1).toString();
+		create(Map.of("title", "First", "amount", "1.00", "categoryId", 1, "date", date));
+		create(Map.of("title", "Second", "amount", "1.00", "categoryId", 1, "date", date));
+		JsonNode populated = json.readTree(browser.send(HttpRequest.newBuilder(URI.create(url("/api/expenses/dashboard"))).GET().build(), HttpResponse.BodyHandlers.ofString()).body());
+		assertThat(populated.get("recentExpenses")).extracting(node -> node.get("title").asText()).containsExactly("Second", "First");
+
+		HttpClient emptyBrowser = newBrowser();
+		registerAndSignIn(emptyBrowser, "dashboard-no-current-month@example.com", "USD");
+		post(emptyBrowser, "/api/expenses", Map.of("title", "Old expense", "amount", "1.00", "categoryId", 1, "date", YearMonth.now().minusMonths(1).atDay(1).toString()));
+		JsonNode empty = json.readTree(emptyBrowser.send(HttpRequest.newBuilder(URI.create(url("/api/expenses/dashboard"))).GET().build(), HttpResponse.BodyHandlers.ofString()).body());
+		assertThat(empty.get("currencies")).isEmpty();
+		assertThat(empty.get("recentExpenses").get(0).get("title").asText()).isEqualTo("Old expense");
+	}
 
 	@Test
 	void signedInUserCanAddAnExactExpenseAndSeeOnlyTheirRecentExpenses() throws Exception {

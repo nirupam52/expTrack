@@ -59,7 +59,7 @@ jobs:
           docker compose down --volumes --remove-orphans
           docker compose up --build --wait --wait-timeout 120
           container_id="$(docker compose ps -q app)"
-          docker compose exec -T app awk '/^Uid:/ { exit $2 != 0 ? 0 : 1 }' /proc/1/status
+          docker compose exec -T app awk '/^Uid:/ { uid = $2 } /^Gid:/ { exit uid == 10001 && $2 == 10001 ? 0 : 1 }' /proc/1/status
           test "$(docker inspect --format '{{.HostConfig.ReadonlyRootfs}}' "$container_id")" = true
           docker compose exec -T app awk '/^CapEff:/ { exit $2 == "0000000000000000" ? 0 : 1 }' /proc/1/status
           docker compose exec -T app awk '/^NoNewPrivs:/ { exit $2 == 1 ? 0 : 1 }' /proc/1/status
