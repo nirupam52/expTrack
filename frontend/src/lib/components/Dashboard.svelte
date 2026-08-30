@@ -59,37 +59,44 @@
 		{@const month = dashboard.month}
 		<div class="dashboard-heading">
 			<div><p class="dashboard-eyebrow">Monthly view</p><h1 id="dashboard-title">{monthName(month)}</h1><p class="dashboard-intro">Your spending this month</p></div>
-			{#if dashboard.currencies.length > 1}
-				<label class="currency-picker"><span class="sr-only">Dashboard currency</span><select aria-label={`Dashboard currency: ${selectedCurrency}`} bind:value={selectedCurrency}>{#each dashboard.currencies as item (item.currency)}<option value={item.currency}>{item.currency}</option>{/each}</select></label>
-			{:else if currency}<p class="currency-label">{currency.currency}</p>{/if}
+			<div class="dashboard-actions">
+				{#if currency}<button aria-label="Add expense from dashboard" class="primary" onclick={onAddExpense}>Add expense</button>{/if}
+				{#if dashboard.currencies.length > 1}
+					<label class="currency-picker"><span class="sr-only">Dashboard currency</span><select aria-label={`Dashboard currency: ${selectedCurrency}`} bind:value={selectedCurrency}>{#each dashboard.currencies as item (item.currency)}<option value={item.currency}>{item.currency}</option>{/each}</select></label>
+				{:else if currency}<p class="currency-label">{currency.currency}</p>{/if}
+			</div>
 		</div>
 
-		{#if currency}
-			<section class="month-total" aria-label={`Total spending in ${currency.currency}`}>
-				<p>Spent this month</p><strong>{formatCurrency({ amountMinor: currency.totalMinor, currency: currency.currency })}</strong><span>Across {currency.categories.length} {currency.categories.length === 1 ? 'category' : 'categories'}</span>
-			</section>
+		<div class={currency ? 'dashboard-overview' : 'dashboard-content'}>
+			{#if currency}
+				<div class="dashboard-summary">
+					<section class="month-total" aria-label={`Total spending in ${currency.currency}`}>
+						<p>Spent this month</p><strong>{formatCurrency({ amountMinor: currency.totalMinor, currency: currency.currency })}</strong><span>Across {currency.categories.length} {currency.categories.length === 1 ? 'category' : 'categories'}</span>
+					</section>
 
-			<section class="breakdown" aria-labelledby="breakdown-title">
-				<h2 id="breakdown-title">Where it went</h2>
-				<div class="spending-ribbon" aria-label="Category shares">
-					{#each selectedCategoryShares as item (item.category.categoryId)}<span style:--amount={item.category.amountMinor}></span>{/each}
+					<section class="breakdown" aria-labelledby="breakdown-title">
+						<h2 id="breakdown-title">Where it went</h2>
+						<div class="spending-ribbon" aria-label="Category shares">
+							{#each selectedCategoryShares as item (item.category.categoryId)}<span style:--amount={item.category.amountMinor}></span>{/each}
+						</div>
+						<ul class="category-list">
+							{#each selectedCategoryShares as item (item.category.categoryId)}
+								<li><button aria-label={`View ${categoryNames.get(item.category.categoryId) ?? 'Unknown category'} expenses for ${monthName(month)} in ${currency.currency}`} onclick={() => onViewCategory(item.category.categoryId, month, currency.currency)}><span>{categoryNames.get(item.category.categoryId) ?? 'Unknown category'} <b aria-hidden="true">&gt;</b></span><strong>{formatCurrency({ amountMinor: item.category.amountMinor, currency: currency.currency })}</strong><em>{item.share}%</em></button></li>
+							{/each}
+						</ul>
+					</section>
 				</div>
-				<ul class="category-list">
-					{#each selectedCategoryShares as item (item.category.categoryId)}
-						<li><button aria-label={`View ${categoryNames.get(item.category.categoryId) ?? 'Unknown category'} expenses for ${monthName(month)} in ${currency.currency}`} onclick={() => onViewCategory(item.category.categoryId, month, currency.currency)}><span>{categoryNames.get(item.category.categoryId) ?? 'Unknown category'} <b aria-hidden="true">&gt;</b></span><strong>{formatCurrency({ amountMinor: item.category.amountMinor, currency: currency.currency })}</strong><em>{item.share}%</em></button></li>
-					{/each}
-				</ul>
-			</section>
-		{:else}
-			<section class="dashboard-empty" aria-labelledby="empty-dashboard-title"><p class="dashboard-eyebrow">Ready when you are</p><h2 id="empty-dashboard-title">Start adding expenses to see insights here.</h2><button class="primary" onclick={onAddExpense}>Add an expense</button></section>
-		{/if}
+			{:else}
+				<section class="dashboard-empty" aria-labelledby="empty-dashboard-title"><p class="dashboard-eyebrow">Ready when you are</p><h2 id="empty-dashboard-title">Start adding expenses to see insights here.</h2><button class="primary" onclick={onAddExpense}>Add an expense</button></section>
+			{/if}
 
-		<section class="recent-expenses" aria-labelledby="recent-title">
-			<div class="section-heading"><h2 id="recent-title">Latest expenses</h2><button aria-label="View all expense history" class="quiet link-button" onclick={onViewHistory}>See all <span aria-hidden="true">&gt;</span></button></div>
-			{#if dashboard.recentExpenses.length}
-				<ul>{#each dashboard.recentExpenses as expense (expense.id)}<li><div><strong>{expense.title}</strong><span>{categoryNames.get(expense.categoryId) ?? 'Unknown category'} - {expense.date}</span></div><b>{formatCurrency(expense)}</b></li>{/each}</ul>
-			{:else}<p class="dashboard-empty-copy">No expenses yet.</p>{/if}
-		</section>
+			<section class="recent-expenses" aria-labelledby="recent-title">
+				<div class="section-heading"><h2 id="recent-title">Latest expenses</h2><button aria-label="View all expense history" class="quiet link-button" onclick={onViewHistory}>See all <span aria-hidden="true">&gt;</span></button></div>
+				{#if dashboard.recentExpenses.length}
+					<ul>{#each dashboard.recentExpenses as expense (expense.id)}<li><div><strong>{expense.title}</strong><span>{categoryNames.get(expense.categoryId) ?? 'Unknown category'} - {expense.date}</span></div><b>{formatCurrency(expense)}</b></li>{/each}</ul>
+				{:else}<p class="dashboard-empty-copy">No expenses yet.</p>{/if}
+			</section>
+		</div>
 	{/if}
 </section>
 
@@ -98,7 +105,7 @@
 	.dashboard {
 		display: grid;
 		gap: 2rem;
-		padding: 1.5rem 0 6.5rem;
+		padding: 1.5rem 0;
 	}
 
 	.dashboard-heading,
@@ -107,6 +114,25 @@
 		display: flex;
 		gap: 1rem;
 		justify-content: space-between;
+	}
+
+	.dashboard-heading {
+		align-items: start;
+		flex-direction: column;
+	}
+
+	.dashboard-actions {
+		align-items: center;
+		display: flex;
+		flex-wrap: wrap;
+		gap: .75rem;
+	}
+
+	.dashboard-content,
+	.dashboard-overview,
+	.dashboard-summary {
+		display: grid;
+		gap: 2rem;
 	}
 
 	/* Typography */
@@ -364,6 +390,24 @@
 		color: var(--color-muted);
 		font-size: .9rem;
 		line-height: 1.5;
+	}
+
+	@media (min-width: 64rem) {
+		.dashboard-heading {
+			align-items: end;
+			flex-direction: row;
+		}
+
+		.dashboard-overview {
+			align-items: start;
+			grid-template-columns: minmax(0, 1fr) minmax(20rem, .85fr);
+		}
+
+		.dashboard-overview .recent-expenses {
+			border-left: 1px solid var(--color-divider);
+			border-top: 0;
+			padding: 0 0 0 2rem;
+		}
 	}
 
 	/* Accessibility */

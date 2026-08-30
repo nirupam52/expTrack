@@ -65,6 +65,28 @@ test('uses dark native controls and full-size text actions', async ({ page }) =>
 	expect(heights.every((height) => height >= 44)).toBe(true);
 });
 
+test('prioritises adding an expense in the desktop overview', async ({ page }) => {
+	await mockLedger(page);
+	await page.route('**/api/expenses/dashboard', (route) => route.fulfill({ json: dashboard }));
+
+	await page.setViewportSize({ width: 1440, height: 900 });
+	await page.goto('/');
+
+	const addExpense = page.getByRole('button', { name: 'Add expense from dashboard' });
+	await expect(addExpense).toBeVisible();
+	const [summaryBox, recentBox] = await Promise.all([
+		page.getByRole('region', { name: 'Total spending in USD' }).boundingBox(),
+		page.getByRole('region', { name: 'Latest expenses' }).boundingBox()
+	]);
+	expect(summaryBox).not.toBeNull();
+	expect(recentBox).not.toBeNull();
+	expect(recentBox!.x).toBeGreaterThan(summaryBox!.x);
+	expect(recentBox!.y).toBeLessThanOrEqual(summaryBox!.y + 1);
+
+	await addExpense.click();
+	await expect(page.getByRole('heading', { name: 'Add an expense' })).toBeVisible();
+});
+
 test('shows a dashboard error and retries', async ({ page }) => {
 	let requests = 0;
 	await mockLedger(page);
