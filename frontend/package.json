@@ -11,12 +11,12 @@
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-		"test:currency": "node --experimental-strip-types --test src/lib/utils/format-currency.test.ts",
-		"test:utils": "node --experimental-strip-types --test src/lib/utils/*.test.ts",
+		"test": "vitest run",
+		"test:watch": "vitest",
 		"test:browser": "npm run build && playwright test"
 	},
 	"devDependencies": {
-		"@playwright/test": "^1.62.1",
+		"@playwright/test": "~1.62.1",
 		"@sveltejs/adapter-auto": "~7.0.1",
 		"@sveltejs/adapter-static": "~3.0.10",
 		"@sveltejs/kit": "~2.70.2",
@@ -27,7 +27,8 @@
 		"svelte-check": "~4.6.0",
 		"tailwindcss": "~4.3.0",
 		"typescript": "~6.0.3",
-		"vite": "~8.0.16"
+		"vite": "~8.0.16",
+		"vitest": "~4.1.11"
 	},
 	"dependencies": {
 		"zod": "^4.4.3"
