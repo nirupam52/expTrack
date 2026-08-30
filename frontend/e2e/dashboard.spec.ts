@@ -61,8 +61,8 @@ test('uses dark native controls and full-size text actions', async ({ page }) =>
 	await page.getByRole('button', { name: 'Delete', exact: true }).click();
 
 	expect(await page.locator('html').evaluate((element) => getComputedStyle(element).colorScheme)).toBe('dark');
-	const heights = await page.locator('button, input, select').evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().height));
-	expect(heights.every((height) => height >= 44)).toBe(true);
+	const sizes = await page.locator('button, input, select').evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect()));
+	expect(sizes.every((box) => box.width >= 44 && box.height >= 44)).toBe(true);
 });
 
 test('prioritises adding an expense in the desktop overview', async ({ page }) => {
