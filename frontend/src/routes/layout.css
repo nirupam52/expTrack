@@ -19,7 +19,7 @@
 }
 
 * { box-sizing: border-box; }
-body { margin: 0; background: #101716; color: var(--color-text); font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+body { margin: 0; background: #101716; color: var(--color-text); font-family: Arial, Helvetica, sans-serif; }
 .app button, .app input, .app select { font: inherit; }
 .app { width: min(100% - 2rem, 42rem); margin: auto; padding: 1.25rem 0 var(--bottom-nav-space); }
 .app header, .app .heading, .app li { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }

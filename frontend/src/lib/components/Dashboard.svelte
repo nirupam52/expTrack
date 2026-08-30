@@ -144,7 +144,6 @@
 
 	.dashboard h1 {
 		color: var(--color-text);
-		font-family: ui-serif, Georgia, serif;
 		font-size: clamp(2.3rem, 11vw, 3.6rem);
 		font-weight: 700;
 		letter-spacing: -.06em;
@@ -179,7 +178,6 @@
 		border: 1px solid var(--color-border-strong);
 		border-radius: .35rem;
 		color: var(--color-link);
-		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 		font-size: .82rem;
 		font-weight: 800;
 		letter-spacing: .04em;
@@ -302,11 +300,15 @@
 	.category-list strong,
 	.category-list em,
 	.recent-expenses b {
-		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 		font-size: .84rem;
 		font-style: normal;
 		font-variant-numeric: tabular-nums;
 		white-space: nowrap;
+	}
+
+	.category-list strong,
+	.recent-expenses b {
+		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 	}
 
 	.category-list em {
@@ -376,7 +378,6 @@
 	}
 
 	.dashboard-empty h2 {
-		font-family: ui-serif, Georgia, serif;
 		font-size: 1.5rem;
 		line-height: 1.1;
 	}
