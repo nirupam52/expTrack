@@ -123,3 +123,42 @@ test('opens filtered history from a dashboard category', async ({ page }) => {
 	await expect(page.getByRole('textbox', { name: 'From' })).toHaveValue('2026-08-01');
 	await expect(page.getByRole('textbox', { name: 'To' })).toHaveValue('2026-08-31');
 });
+
+test('keeps applied history filters after editing an expense', async ({ page }) => {
+	await mockLedger(page);
+	const historyQueries: Array<string | null> = [];
+	await page.route('**/api/auth/csrf', (route) => route.fulfill({ json: { token: 'test-token' } }));
+	await page.route('**/api/expenses*', (route) => {
+		const url = new URL(route.request().url());
+		historyQueries.push(url.searchParams.get('query'));
+		return route.fulfill({ json: { items: [dashboard.recentExpenses[0]], nextCursor: null } });
+	});
+	await page.route('**/api/expenses/dashboard', (route) => route.fulfill({ json: dashboard }));
+	await page.route('**/api/expenses/1', (route) => route.fulfill({ json: dashboard.recentExpenses[0] }));
+
+	await page.goto('/');
+	await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'History' }).click();
+	await page.getByRole('textbox', { name: 'Search title or note' }).fill('Market');
+	await page.getByRole('button', { name: 'Apply filters' }).click();
+	await page.getByRole('button', { name: 'Edit' }).click();
+	await page.getByRole('button', { name: 'Cancel' }).click();
+
+	await expect(page.getByRole('textbox', { name: 'Search title or note' })).toHaveValue('Market');
+	await page.getByRole('button', { name: 'Edit' }).click();
+	await page.getByRole('button', { name: 'Save changes' }).click();
+	await expect(page.getByRole('textbox', { name: 'Search title or note' })).toHaveValue('Market');
+	// One fetch on entering history, one per apply, one per return after cancel and after save.
+	expect(historyQueries).toEqual([null, 'Market', 'Market', 'Market']);
+});
+
+test('distinguishes no current-month spending from no expenses', async ({ page }) => {
+	await mockLedger(page);
+	await page.route('**/api/expenses/dashboard', (route) => route.fulfill({ json: { ...dashboard, currencies: [] } }));
+
+	await page.goto('/');
+
+	await expect(page.getByRole('heading', { name: 'No spending this month yet.' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Start adding expenses to see insights here.' })).toHaveCount(0);
+	await expect(page.getByRole('button', { name: 'Add an expense' })).toBeVisible();
+	await expect(page.getByText('Market')).toBeVisible();
+});

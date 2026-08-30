@@ -4,12 +4,13 @@
 	import { expensePageSchema, type Category, type Expense, type ExpenseHistoryFilters } from '$lib/api/types';
 	import { formatCurrency } from '$lib/utils/format-currency';
 
-	let { categories, initialFilters, reloadVersion, onEdit, onDelete }: {
+	let { categories, initialFilters, reloadVersion, onEdit, onDelete, onFiltersChange }: {
 		categories: Category[];
 		initialFilters: ExpenseHistoryFilters;
 		reloadVersion: number;
 		onEdit: (expense: Expense) => void;
 		onDelete: (expense: Expense) => Promise<boolean>;
+		onFiltersChange: (filters: ExpenseHistoryFilters) => void;
 	} = $props();
 
 	const filters = untrack(() => ({ ...initialFilters }));
@@ -73,6 +74,7 @@
 	function applyFilters(event: SubmitEvent) {
 		event.preventDefault();
 		applied = { query: query.trim(), categoryId, currency, from, to };
+		onFiltersChange(applied);
 		void load(null, false);
 	}
 
@@ -83,6 +85,7 @@
 		from = '';
 		to = '';
 		applied = { query: '', categoryId: null, currency: '', from: '', to: '' };
+		onFiltersChange(applied);
 		void load(null, false);
 	}
 

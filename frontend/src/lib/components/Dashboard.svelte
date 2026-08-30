@@ -86,8 +86,10 @@
 						</ul>
 					</section>
 				</div>
-			{:else}
+			{:else if dashboard.recentExpenses.length === 0}
 				<section class="dashboard-empty" aria-labelledby="empty-dashboard-title"><p class="dashboard-eyebrow">Ready when you are</p><h2 id="empty-dashboard-title">Start adding expenses to see insights here.</h2><button class="primary" onclick={onAddExpense}>Add an expense</button></section>
+			{:else}
+				<section class="dashboard-empty" aria-labelledby="empty-dashboard-title"><p class="dashboard-eyebrow">This month</p><h2 id="empty-dashboard-title">No spending this month yet.</h2><button class="primary" onclick={onAddExpense}>Add an expense</button></section>
 			{/if}
 
 			<section class="recent-expenses" aria-labelledby="recent-title">
