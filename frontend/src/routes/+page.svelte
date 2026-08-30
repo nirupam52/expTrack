@@ -40,6 +40,10 @@
 	let view = $state<View>('dashboard');
 	let formDirty = $state(false);
 	let historyFilters = $state<ExpenseHistoryFilters>({ ...emptyHistoryFilters });
+
+	// Bumped only by explicit viewHistory calls (nav reset, dashboard drill-down); user-applied
+	// filters reported via onFiltersChange update historyFilters without remounting ExpenseHistory.
+	let historyRemount = $state(0);
 	let toast = $state<Toast | null>(null);
 	let toastSequence = 0;
 
@@ -169,6 +173,7 @@
 	function viewHistory(filters: Partial<ExpenseHistoryFilters> = {}) {
 		if (!canLeaveForm()) return;
 		historyFilters = { ...emptyHistoryFilters, ...filters };
+		historyRemount += 1;
 		editing = null;
 		formDirty = false;
 		view = 'history';
@@ -229,7 +234,7 @@
 				{#if editing}{#key editing.id}<ExpenseForm {categories} initial={{ title: editing.title, amount: amountForInput(editing), categoryId: editing.categoryId, date: editing.date, note: editing.note ?? '' }} {submitting} {error} submitLabel="Save changes" onCancel={() => { editing = null; error = ''; formDirty = false; view = 'history'; }} onDirty={() => formDirty = true} onSubmit={updateExpense} />{/key}{:else}<ExpenseForm {categories} initial={{ title: '', amount: '', categoryId: categories[0]?.id ?? null, date: today(), note: '' }} {submitting} {error} onDirty={() => formDirty = true} onSubmit={addExpense} />{/if}
 			</section>
 		{:else}
-			{#key `${historyFilters.query}-${historyFilters.categoryId}-${historyFilters.currency}-${historyFilters.from}-${historyFilters.to}`}<ExpenseHistory {categories} initialFilters={historyFilters} reloadVersion={expenseVersion} onEdit={(expense) => { editing = expense; error = ''; view = 'add'; }} onDelete={deleteExpense} />{/key}
+			{#key historyRemount}<ExpenseHistory {categories} initialFilters={historyFilters} reloadVersion={expenseVersion} onEdit={(expense) => { editing = expense; error = ''; view = 'add'; }} onDelete={deleteExpense} onFiltersChange={(filters) => historyFilters = filters} />{/key}
 		{/if}
 		<nav class="bottom-nav" aria-label="Main navigation"><button class={{ active: view === 'dashboard' }} aria-current={view === 'dashboard' ? 'page' : undefined} onclick={viewDashboard}>Dashboard</button><button class={{ active: view === 'add' }} aria-current={view === 'add' ? 'page' : undefined} onclick={startAddExpense}>Add expense</button><button class={{ active: view === 'history' }} aria-current={view === 'history' ? 'page' : undefined} onclick={() => viewHistory()}>History</button></nav>
 		{#if toast}<p class:toast-error={toast.kind === 'error'} class="toast" role={toast.kind === 'error' ? 'alert' : 'status'}>{toast.message}</p>{/if}
