@@ -24,6 +24,31 @@ test('loads the dashboard', async ({ page }) => {
 	await expect(page.getByText('Market')).toBeVisible();
 });
 
+test('uses a fixed mobile dock and a wide desktop header navigation', async ({ page }) => {
+	await mockLedger(page);
+	await page.route('**/api/expenses/dashboard', (route) => route.fulfill({ json: dashboard }));
+
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.goto('/');
+
+	const navigation = page.getByRole('navigation', { name: 'Main navigation' });
+	await expect(navigation).toHaveCSS('position', 'fixed');
+	const expense = page.locator('.recent-expenses li');
+	await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+	const [navigationBox, expenseBox] = await Promise.all([navigation.boundingBox(), expense.boundingBox()]);
+	expect(navigationBox).not.toBeNull();
+	expect(expenseBox).not.toBeNull();
+	expect(expenseBox!.y + expenseBox!.height).toBeLessThanOrEqual(navigationBox!.y);
+
+	await page.setViewportSize({ width: 1440, height: 900 });
+	const [desktopNavigationBox, headerBox] = await Promise.all([navigation.boundingBox(), page.locator('header').boundingBox()]);
+	expect(desktopNavigationBox).not.toBeNull();
+	expect(headerBox).not.toBeNull();
+	expect(desktopNavigationBox!.y).toBeGreaterThanOrEqual(headerBox!.y);
+	expect(desktopNavigationBox!.y + desktopNavigationBox!.height).toBeLessThanOrEqual(headerBox!.y + headerBox!.height);
+	expect(await page.locator('.app').evaluate((element) => element.getBoundingClientRect().width)).toBeGreaterThan(672);
+});
+
 test('shows a dashboard error and retries', async ({ page }) => {
 	let requests = 0;
 	await mockLedger(page);

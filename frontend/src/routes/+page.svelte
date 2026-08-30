@@ -205,8 +205,11 @@
 	<header>
 		<a class="brand" href={resolve('/')} onclick={(event) => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); viewDashboard(); }}>ExpTrack</a>
 		{#if session}
-			<button class="quiet" onclick={signOut}>Sign out</button>
-			{#if signOutError}<p class="error" role="alert">{signOutError}</p>{/if}
+			<nav class="bottom-nav" aria-label="Main navigation"><button class={{ active: view === 'dashboard' }} aria-current={view === 'dashboard' ? 'page' : undefined} onclick={viewDashboard}>Dashboard</button><button class={{ active: view === 'add' }} aria-current={view === 'add' ? 'page' : undefined} onclick={startAddExpense}>Add expense</button><button class={{ active: view === 'history' }} aria-current={view === 'history' ? 'page' : undefined} onclick={() => viewHistory()}>History</button></nav>
+			<div class="account-actions">
+				<button class="quiet" onclick={signOut}>Sign out</button>
+				{#if signOutError}<p class="error" role="alert">{signOutError}</p>{/if}
+			</div>
 		{/if}
 	</header>
 
@@ -231,7 +234,6 @@
 		{:else}
 			{#key `${historyFilters.query}-${historyFilters.categoryId}-${historyFilters.currency}-${historyFilters.from}-${historyFilters.to}`}<ExpenseHistory {categories} initialFilters={historyFilters} reloadVersion={expenseVersion} onEdit={(expense) => { editing = expense; error = ''; view = 'add'; }} onDelete={deleteExpense} />{/key}
 		{/if}
-		<nav class="bottom-nav" aria-label="Main navigation"><button class={{ active: view === 'dashboard' }} aria-current={view === 'dashboard' ? 'page' : undefined} onclick={viewDashboard}>Dashboard</button><button class={{ active: view === 'add' }} aria-current={view === 'add' ? 'page' : undefined} onclick={startAddExpense}>Add expense</button><button class={{ active: view === 'history' }} aria-current={view === 'history' ? 'page' : undefined} onclick={() => viewHistory()}>History</button></nav>
 		{#if toast}<p class:toast-error={toast.kind === 'error'} class="toast" role={toast.kind === 'error' ? 'alert' : 'status'}>{toast.message}</p>{/if}
 	{/if}
 </main>
