@@ -34,6 +34,7 @@ test('uses a fixed mobile dock and a wide desktop header navigation', async ({ p
 	const navigation = page.getByRole('navigation', { name: 'Main navigation' });
 	await expect(navigation).toHaveCSS('position', 'fixed');
 	const expense = page.locator('.recent-expenses li');
+	await expect(expense).toBeVisible();
 	await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
 	const [navigationBox, expenseBox] = await Promise.all([navigation.boundingBox(), expense.boundingBox()]);
 	expect(navigationBox).not.toBeNull();
@@ -47,6 +48,21 @@ test('uses a fixed mobile dock and a wide desktop header navigation', async ({ p
 	expect(desktopNavigationBox!.y).toBeGreaterThanOrEqual(headerBox!.y);
 	expect(desktopNavigationBox!.y + desktopNavigationBox!.height).toBeLessThanOrEqual(headerBox!.y + headerBox!.height);
 	expect(await page.locator('.app').evaluate((element) => element.getBoundingClientRect().width)).toBeGreaterThan(672);
+});
+
+test('uses dark native controls and full-size text actions', async ({ page }) => {
+	await mockLedger(page);
+	await page.route('**/api/expenses/dashboard', (route) => route.fulfill({ json: dashboard }));
+	await page.route(/\/api\/expenses(?:\?.*)?$/, (route) => route.fulfill({ json: { items: dashboard.recentExpenses, nextCursor: null } }));
+
+	await page.goto('/');
+	await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'History' }).click();
+	await expect(page.getByRole('heading', { name: 'Expense history' })).toBeVisible();
+	await page.getByRole('button', { name: 'Delete', exact: true }).click();
+
+	expect(await page.locator('html').evaluate((element) => getComputedStyle(element).colorScheme)).toBe('dark');
+	const heights = await page.locator('button, input, select').evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().height));
+	expect(heights.every((height) => height >= 44)).toBe(true);
 });
 
 test('shows a dashboard error and retries', async ({ page }) => {
