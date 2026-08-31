@@ -71,7 +71,7 @@ body { margin: 0; background: #101716; color: var(--color-text); font-family: Ar
 .app .bottom-nav button.active { border-color: var(--color-primary); color: var(--color-accent); }
 @media (min-width: 35rem) {
 	.app .form-pair { grid-template-columns: 1fr 1fr; }
-	.app .filter-pair { grid-template-columns: 1.3fr 1fr 1fr; }
+	.app .filter-pair { grid-template-columns: 1fr 1fr; }
 }
 
 @media (min-width: 64rem) {

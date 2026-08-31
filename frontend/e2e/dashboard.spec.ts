@@ -102,7 +102,7 @@ test('shows a dashboard error and retries', async ({ page }) => {
 	expect(requests).toBe(2);
 });
 
-test('opens filtered history from a dashboard category', async ({ page }) => {
+test('opens filtered history from a dashboard category with currency prefill', async ({ page }) => {
 	await mockLedger(page);
 	await page.route('**/api/expenses/dashboard', (route) => route.fulfill({ json: dashboard }));
 	await page.route('**/api/expenses?**', (route) => {
@@ -119,9 +119,47 @@ test('opens filtered history from a dashboard category', async ({ page }) => {
 
 	await expect(page.getByRole('heading', { name: 'Expense history' })).toBeVisible();
 	await expect(page.getByRole('combobox', { name: 'Category' })).toHaveValue('1');
+	await expect(page.getByRole('textbox', { name: 'Currency' })).toHaveValue('USD');
 	await expect(page.getByText('USD - 1 shown')).toBeVisible();
 	await expect(page.getByRole('textbox', { name: 'From' })).toHaveValue('2026-08-01');
 	await expect(page.getByRole('textbox', { name: 'To' })).toHaveValue('2026-08-31');
+});
+
+test('normalises and clears history currency filters', async ({ page }) => {
+	await mockLedger(page);
+	const historyCurrencies: Array<string | null> = [];
+	await page.route(/\/api\/expenses(?:\?.*)?$/, (route) => {
+		const url = new URL(route.request().url());
+		historyCurrencies.push(url.searchParams.get('currency'));
+		return route.fulfill({ json: { items: dashboard.recentExpenses, nextCursor: null } });
+	});
+	await page.route('**/api/expenses/dashboard', (route) => route.fulfill({ json: dashboard }));
+
+	await page.setViewportSize({ width: 560, height: 844 });
+	await page.goto('/');
+	await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'History' }).click();
+
+	const category = page.getByRole('combobox', { name: 'Category' });
+	const currency = page.getByRole('textbox', { name: 'Currency' });
+	const from = page.getByRole('textbox', { name: 'From' });
+	const to = page.getByRole('textbox', { name: 'To' });
+	const [categoryBox, currencyBox, fromBox, toBox] = await Promise.all([category.boundingBox(), currency.boundingBox(), from.boundingBox(), to.boundingBox()]);
+	expect(categoryBox).not.toBeNull();
+	expect(currencyBox).not.toBeNull();
+	expect(fromBox).not.toBeNull();
+	expect(toBox).not.toBeNull();
+	expect(categoryBox!.y).toBe(currencyBox!.y);
+	expect(fromBox!.y).toBe(toBox!.y);
+	expect(fromBox!.y).toBeGreaterThan(categoryBox!.y);
+
+	await currency.fill(' usd ');
+	await page.getByRole('button', { name: 'Apply filters' }).click();
+	await expect.poll(() => historyCurrencies).toEqual([null, 'USD']);
+	await expect(currency).toHaveValue('USD');
+
+	await page.getByRole('button', { name: 'Clear filters' }).click();
+	await expect.poll(() => historyCurrencies).toEqual([null, 'USD', null]);
+	await expect(currency).toHaveValue('');
 });
 
 test('keeps applied history filters after editing an expense', async ({ page }) => {
