@@ -73,6 +73,7 @@
 
 	function applyFilters(event: SubmitEvent) {
 		event.preventDefault();
+		currency = currency.trim().toUpperCase();
 		applied = { query: query.trim(), categoryId, currency, from, to };
 		onFiltersChange(applied);
 		void load(null, false);
@@ -114,6 +115,7 @@
 		<label class="field search-field">Search title or note<input bind:value={query} maxlength="500" placeholder="Coffee, train fare…" /></label>
 		<div class="filter-pair">
 		<label class="field">Category<select bind:value={categoryId}><option value={null}>All categories</option>{#each categories as item (item.id)}<option value={item.id}>{item.name}</option>{/each}</select></label>
+			<label class="field">Currency<input bind:value={currency} autocapitalize="characters" placeholder="USD" /></label>
 			<label class="field">From<input bind:value={from} type="date" max={to || undefined} /></label>
 			<label class="field">To<input bind:value={to} type="date" min={from || undefined} /></label>
 		</div>

@@ -24,6 +24,69 @@ test('loads the dashboard', async ({ page }) => {
 	await expect(page.getByText('Market')).toBeVisible();
 });
 
+test('uses a fixed mobile dock and a wide desktop header navigation', async ({ page }) => {
+	await mockLedger(page);
+	await page.route('**/api/expenses/dashboard', (route) => route.fulfill({ json: dashboard }));
+
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.goto('/');
+
+	const navigation = page.getByRole('navigation', { name: 'Main navigation' });
+	await expect(navigation).toHaveCSS('position', 'fixed');
+	const expense = page.locator('.recent-expenses li');
+	await expect(expense).toBeVisible();
+	await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+	const [navigationBox, expenseBox] = await Promise.all([navigation.boundingBox(), expense.boundingBox()]);
+	expect(navigationBox).not.toBeNull();
+	expect(expenseBox).not.toBeNull();
+	expect(expenseBox!.y + expenseBox!.height).toBeLessThanOrEqual(navigationBox!.y);
+
+	await page.setViewportSize({ width: 1440, height: 900 });
+	const [desktopNavigationBox, headerBox] = await Promise.all([navigation.boundingBox(), page.locator('header').boundingBox()]);
+	expect(desktopNavigationBox).not.toBeNull();
+	expect(headerBox).not.toBeNull();
+	expect(desktopNavigationBox!.y).toBeGreaterThanOrEqual(headerBox!.y);
+	expect(desktopNavigationBox!.y + desktopNavigationBox!.height).toBeLessThanOrEqual(headerBox!.y + headerBox!.height);
+	expect(await page.locator('.app').evaluate((element) => element.getBoundingClientRect().width)).toBeGreaterThan(672);
+});
+
+test('uses dark native controls and full-size text actions', async ({ page }) => {
+	await mockLedger(page);
+	await page.route('**/api/expenses/dashboard', (route) => route.fulfill({ json: dashboard }));
+	await page.route(/\/api\/expenses(?:\?.*)?$/, (route) => route.fulfill({ json: { items: dashboard.recentExpenses, nextCursor: null } }));
+
+	await page.goto('/');
+	await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'History' }).click();
+	await expect(page.getByRole('heading', { name: 'Expense history' })).toBeVisible();
+	await page.getByRole('button', { name: 'Delete', exact: true }).click();
+
+	expect(await page.locator('html').evaluate((element) => getComputedStyle(element).colorScheme)).toBe('dark');
+	const sizes = await page.locator('button, input, select').evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect()));
+	expect(sizes.every((box) => box.width >= 44 && box.height >= 44)).toBe(true);
+});
+
+test('prioritises adding an expense in the desktop overview', async ({ page }) => {
+	await mockLedger(page);
+	await page.route('**/api/expenses/dashboard', (route) => route.fulfill({ json: dashboard }));
+
+	await page.setViewportSize({ width: 1440, height: 900 });
+	await page.goto('/');
+
+	const addExpense = page.getByRole('button', { name: 'Add expense from dashboard' });
+	await expect(addExpense).toBeVisible();
+	const [summaryBox, recentBox] = await Promise.all([
+		page.getByRole('region', { name: 'Total spending in USD' }).boundingBox(),
+		page.getByRole('region', { name: 'Latest expenses' }).boundingBox()
+	]);
+	expect(summaryBox).not.toBeNull();
+	expect(recentBox).not.toBeNull();
+	expect(recentBox!.x).toBeGreaterThan(summaryBox!.x);
+	expect(recentBox!.y).toBeLessThanOrEqual(summaryBox!.y + 1);
+
+	await addExpense.click();
+	await expect(page.getByRole('heading', { name: 'Add an expense' })).toBeVisible();
+});
+
 test('shows a dashboard error and retries', async ({ page }) => {
 	let requests = 0;
 	await mockLedger(page);
@@ -39,7 +102,7 @@ test('shows a dashboard error and retries', async ({ page }) => {
 	expect(requests).toBe(2);
 });
 
-test('opens filtered history from a dashboard category', async ({ page }) => {
+test('opens filtered history from a dashboard category with currency prefill', async ({ page }) => {
 	await mockLedger(page);
 	await page.route('**/api/expenses/dashboard', (route) => route.fulfill({ json: dashboard }));
 	await page.route('**/api/expenses?**', (route) => {
@@ -56,9 +119,47 @@ test('opens filtered history from a dashboard category', async ({ page }) => {
 
 	await expect(page.getByRole('heading', { name: 'Expense history' })).toBeVisible();
 	await expect(page.getByRole('combobox', { name: 'Category' })).toHaveValue('1');
+	await expect(page.getByRole('textbox', { name: 'Currency' })).toHaveValue('USD');
 	await expect(page.getByText('USD - 1 shown')).toBeVisible();
 	await expect(page.getByRole('textbox', { name: 'From' })).toHaveValue('2026-08-01');
 	await expect(page.getByRole('textbox', { name: 'To' })).toHaveValue('2026-08-31');
+});
+
+test('normalises and clears history currency filters', async ({ page }) => {
+	await mockLedger(page);
+	const historyCurrencies: Array<string | null> = [];
+	await page.route(/\/api\/expenses(?:\?.*)?$/, (route) => {
+		const url = new URL(route.request().url());
+		historyCurrencies.push(url.searchParams.get('currency'));
+		return route.fulfill({ json: { items: dashboard.recentExpenses, nextCursor: null } });
+	});
+	await page.route('**/api/expenses/dashboard', (route) => route.fulfill({ json: dashboard }));
+
+	await page.setViewportSize({ width: 560, height: 844 });
+	await page.goto('/');
+	await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'History' }).click();
+
+	const category = page.getByRole('combobox', { name: 'Category' });
+	const currency = page.getByRole('textbox', { name: 'Currency' });
+	const from = page.getByRole('textbox', { name: 'From' });
+	const to = page.getByRole('textbox', { name: 'To' });
+	const [categoryBox, currencyBox, fromBox, toBox] = await Promise.all([category.boundingBox(), currency.boundingBox(), from.boundingBox(), to.boundingBox()]);
+	expect(categoryBox).not.toBeNull();
+	expect(currencyBox).not.toBeNull();
+	expect(fromBox).not.toBeNull();
+	expect(toBox).not.toBeNull();
+	expect(categoryBox!.y).toBe(currencyBox!.y);
+	expect(fromBox!.y).toBe(toBox!.y);
+	expect(fromBox!.y).toBeGreaterThan(categoryBox!.y);
+
+	await currency.fill(' usd ');
+	await page.getByRole('button', { name: 'Apply filters' }).click();
+	await expect.poll(() => historyCurrencies).toEqual([null, 'USD']);
+	await expect(currency).toHaveValue('USD');
+
+	await page.getByRole('button', { name: 'Clear filters' }).click();
+	await expect.poll(() => historyCurrencies).toEqual([null, 'USD', null]);
+	await expect(currency).toHaveValue('');
 });
 
 test('keeps applied history filters after editing an expense', async ({ page }) => {

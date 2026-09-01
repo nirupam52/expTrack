@@ -1,5 +1,4 @@
-import assert from 'node:assert/strict';
-import test from 'node:test';
+import { expect, test } from 'vitest';
 
 import { amountForInput, formatCurrency } from './format-currency.ts';
 
@@ -19,14 +18,14 @@ test('formats exact minor units without rounding', () => {
 	const usd = formatCurrency({ amountMinor: minorUnits, currency: 'USD' });
 	const jpy = formatCurrency({ amountMinor: minorUnits, currency: 'JPY' });
 
-	assert.equal(digits(usd), minorUnits);
-	assert.equal(fraction(usd, 'USD'), '07');
-	assert.equal(digits(jpy), minorUnits);
-	assert.equal(fraction(jpy, 'JPY'), undefined);
+	expect(digits(usd)).toBe(minorUnits);
+	expect(fraction(usd, 'USD')).toBe('07');
+	expect(digits(jpy)).toBe(minorUnits);
+	expect(fraction(jpy, 'JPY')).toBeUndefined();
 });
 
 test('converts exact minor units to editable decimal input', () => {
-	assert.equal(amountForInput({ amountMinor: '9223372036854775807', currency: 'USD' }), '92233720368547758.07');
-	assert.equal(amountForInput({ amountMinor: '12345', currency: 'BHD' }), '12.345');
-	assert.equal(amountForInput({ amountMinor: '500', currency: 'JPY' }), '500');
+	expect(amountForInput({ amountMinor: '9223372036854775807', currency: 'USD' })).toBe('92233720368547758.07');
+	expect(amountForInput({ amountMinor: '12345', currency: 'BHD' })).toBe('12.345');
+	expect(amountForInput({ amountMinor: '500', currency: 'JPY' })).toBe('500');
 });
