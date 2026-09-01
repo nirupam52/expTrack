@@ -76,7 +76,7 @@
 			{#key editing.id}
 				<ExpenseForm
 					{categories}
-					initial={{ title: editing.title, amount: amountForInput(editing), categoryId: editing.categoryId, date: editing.date, note: editing.note ?? '', recordedCurrency: editing.currency }}
+					initial={{ title: editing.title, amount: amountForInput(editing), categoryId: editing.categoryId, date: editing.date, note: editing.note ?? '' }}
 					{submitting}
 					{error}
 					submitLabel="Save changes"
@@ -88,7 +88,7 @@
 		{:else}
 			<ExpenseForm
 				{categories}
-				initial={{ title: '', amount: '', categoryId: categories[0]?.id ?? null, date: today(), note: '', recordedCurrency: session.defaultCurrency }}
+				initial={{ title: '', amount: '', categoryId: categories[0]?.id ?? null, date: today(), note: '', currencySnapshot: session.currencySnapshot }}
 				{submitting}
 				{error}
 				onDirty={onDirty}

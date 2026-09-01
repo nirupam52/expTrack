@@ -49,12 +49,14 @@ public class ExpenseService {
 
 	public ExpenseResponse create(ExpenseRequest request, String email) {
 		UserAccount user = currentUser(email);
-		Expense expense = expenses.save(new Expense(user.getId(), details(request, recordedCurrency(request, user))));
+		Expense expense = expenses.save(new Expense(user.getId(), details(request, currencySnapshot(request, user))));
 		return response(expense);
 	}
 
-	private String recordedCurrency(ExpenseRequest request, UserAccount user) {
-		return request.recordedCurrency() == null ? user.getDefaultCurrency() : request.recordedCurrency();
+	private String currencySnapshot(ExpenseRequest request, UserAccount user) {
+		if (request.currencySnapshot() == null) return user.getDefaultCurrency();
+		return CurrencySnapshotService.resolve(request.currencySnapshot(), user.getEmail())
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Currency snapshot is invalid"));
 	}
 
 	public ExpensePageResponse history(ExpenseHistoryRequest request, String email) {
@@ -96,16 +98,16 @@ public class ExpenseService {
 		expenses.delete(ownedExpense(expenseId, email));
 	}
 
-	private ExpenseDetails details(ExpenseRequest request, String recordedCurrency) {
+	private ExpenseDetails details(ExpenseRequest request, String currency) {
 		if (!categories.isValid(request.categoryId())) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Category is invalid");
 		}
 		return new ExpenseDetails(
 				request.title().trim(),
-				amountMinor(request.amount(), recordedCurrency),
+				amountMinor(request.amount(), currency),
 				request.categoryId(),
 				request.date(),
-				recordedCurrency,
+				currency,
 				optionalText(request.note()));
 	}
 

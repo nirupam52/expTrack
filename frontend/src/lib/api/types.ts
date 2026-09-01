@@ -11,7 +11,8 @@ export const categoriesSchema = z.array(categorySchema);
 export const sessionSchema = z.object({
 	email: z.string().email(),
 	defaultCurrency: currencySchema,
-	createdAt: z.iso.datetime({ offset: true }).nullable()
+	createdAt: z.iso.datetime({ offset: true }).nullable(),
+	currencySnapshot: z.string().min(1)
 });
 
 export const expenseSchema = z.object({
@@ -67,7 +68,7 @@ export type ExpenseDraft = {
 	categoryId: number | null;
 	date: string;
 	note: string;
-	recordedCurrency?: string;
+	currencySnapshot?: string;
 };
 
 export type AccountPasswords = {

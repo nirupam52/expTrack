@@ -214,6 +214,12 @@ class ExpenseEndpointTest {
 				.build(), HttpResponse.BodyHandlers.discarding());
 		assertThat(signIn.statusCode()).isEqualTo(HttpStatus.NO_CONTENT.value());
 	}
+	private JsonNode session() throws Exception {
+		HttpResponse<String> response = browser.send(HttpRequest.newBuilder(URI.create(url("/api/auth/session"))).GET().build(),
+				HttpResponse.BodyHandlers.ofString());
+		assertThat(response.statusCode()).isEqualTo(HttpStatus.OK.value());
+		return json.readTree(response.body());
+	}
 
 	private HttpResponse<String> create(Map<String, ?> expense) throws Exception {
 		return post("/api/expenses", expense);

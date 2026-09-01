@@ -19,12 +19,12 @@
 	let amount = $state(initialValues.amount);
 	let category = $state<number | null>(initialValues.categoryId);
 	let date = $state(initialValues.date);
-	const recordedCurrency = initialValues.recordedCurrency;
+	const currencySnapshot = initialValues.currencySnapshot;
 	let note = $state(initialValues.note);
 
 	async function submit(event: SubmitEvent) {
 		event.preventDefault();
-		const saved = await onSubmit({ title, amount, categoryId: category, date, note, recordedCurrency });
+		const saved = await onSubmit({ title, amount, categoryId: category, date, note, currencySnapshot });
 		if (!saved) return;
 		if (onCancel) {
 			onCancel();

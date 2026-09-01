@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 const categories = [{ id: 1, name: 'Groceries' }];
-const session = { email: 'test@example.com', defaultCurrency: 'USD', createdAt: '2026-01-15T10:30:00Z' };
+const session = { email: 'test@example.com', defaultCurrency: 'USD', createdAt: '2026-01-15T10:30:00Z', currencySnapshot: 'test-currency-snapshot' };
 const dashboard = { month: '2026-08', currencies: [], recentExpenses: [] };
 
 async function mockLedger(page: Page, sessionOverride: Record<string, unknown> = {}) {
