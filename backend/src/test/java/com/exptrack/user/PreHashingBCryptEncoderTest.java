@@ -22,12 +22,13 @@ class PreHashingBCryptEncoderTest {
 	}
 
 	@Test
-	void retainsLegacyBCryptCompatibilityAbove72Utf8Bytes() {
-		String rawPassword = "é".repeat(40);
-		String encoded = bcrypt.encode(rawPassword);
+	void legacyHashesRejectOverlongGuessesWithoutThrowing() {
+		String legacyPassword = "a".repeat(72);
+		String encoded = bcrypt.encode(legacyPassword);
 
-		assertThat(rawPassword.getBytes(StandardCharsets.UTF_8)).hasSize(80);
-		assertThat(encoder.matches(rawPassword, encoded)).isTrue();
+		assertThat(encoder.matches(legacyPassword, encoded)).isTrue();
+		assertThat(encoder.matches(legacyPassword + "a", encoded)).isFalse();
+		assertThat(encoder.matches("é".repeat(40), encoded)).isFalse();
 	}
 
 	@Test

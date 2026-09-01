@@ -46,8 +46,9 @@ final class AuthRequestBodyLimitFilter extends OncePerRequestFilter {
 				|| AccountRequestLockFilter.PASSWORD_PATH.equals(path);
 	}
 
-	private boolean oversizedFormPassword(HttpServletRequest request) {
+	private boolean oversizedFormPassword(HttpServletRequest request) throws IOException {
 		if (!AccountRequestLockFilter.LOGIN_PATH.equals(request.getServletPath())) return false;
+		request.setCharacterEncoding(StandardCharsets.UTF_8.name());
 		String password = request.getParameter("password");
 		return password != null && password.codePointCount(0, password.length()) > MAX_FORM_PASSWORD_CODE_POINTS;
 	}
@@ -55,7 +56,7 @@ final class AuthRequestBodyLimitFilter extends OncePerRequestFilter {
 	private static final class LimitedRequest extends HttpServletRequestWrapper {
 		private final LimitedInputStream input;
 
-		private LimitedRequest(HttpServletRequest request) {
+		private LimitedRequest(HttpServletRequest request) throws IOException {
 			super(request);
 			this.input = new LimitedInputStream(request.getInputStream());
 		}
