@@ -69,7 +69,15 @@ public class AccountService {
 
 	private void expireSessions(String email, HttpSession currentSession) {
 		sessions.getAllSessions(email, false).forEach(SessionInformation::expireNow);
-		currentSession.invalidate();
+		invalidateCurrentSession(currentSession);
+	}
+
+	static void invalidateCurrentSession(HttpSession currentSession) {
+		try {
+			currentSession.invalidate();
+		} catch (IllegalStateException ignored) {
+			// The session was invalidated concurrently; the password change still succeeded.
+		}
 	}
 
 	private UserAccount find(String email) {
