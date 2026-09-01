@@ -22,7 +22,7 @@ The calendar date a user attributes to an expense. It represents when the outflo
 
 ## Expense history
 
-The personal, date-ordered list of a user's expenses. It can be narrowed by title or note text, category, and an inclusive expense-date range.
+The personal, date-ordered list of a user's expenses. It can be narrowed by title or note text, category, recorded currency, and an inclusive expense-date range.
 
 ## Dashboard
 
@@ -38,7 +38,7 @@ The recorded currency selected for dashboard summaries. The dashboard selects th
 
 ## Category drill-down
 
-Opening expense history from a dashboard category with that category and the current month already selected as filters.
+Opening expense history from a dashboard category with that category, the current month, and the selected dashboard currency already selected as filters.
 
 ## Recent expenses
 

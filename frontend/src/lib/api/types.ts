@@ -26,10 +26,32 @@ export const expensePageSchema = z.object({
 	items: z.array(expenseSchema),
 	nextCursor: z.string().min(1).nullable()
 });
+export const dashboardCategorySchema = z.object({
+	categoryId: z.number().int().positive(),
+	amountMinor: z.string().regex(/^\d+$/)
+});
+export const dashboardCurrencySchema = z.object({
+	currency: currencySchema,
+	totalMinor: z.string().regex(/^\d+$/),
+	categories: z.array(dashboardCategorySchema)
+});
+export const dashboardSchema = z.object({
+	month: z.string().regex(/^\d{4}-\d{2}$/),
+	currencies: z.array(dashboardCurrencySchema),
+	recentExpenses: z.array(expenseSchema).max(5)
+});
 
 export type Category = z.infer<typeof categorySchema>;
 export type Session = z.infer<typeof sessionSchema>;
 export type Expense = z.infer<typeof expenseSchema>;
+export type Dashboard = z.infer<typeof dashboardSchema>;
+export type ExpenseHistoryFilters = {
+	query: string;
+	categoryId: number | null;
+	currency: string;
+	from: string;
+	to: string;
+};
 
 export type AuthSubmission = {
 	mode: 'sign-in' | 'register';
