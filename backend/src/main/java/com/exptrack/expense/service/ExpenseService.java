@@ -49,12 +49,12 @@ public class ExpenseService {
 
 	public ExpenseResponse create(ExpenseRequest request, String email) {
 		UserAccount user = currentUser(email);
-		Expense expense = expenses.save(new Expense(user.getId(), details(request, createCurrency(request, user))));
+		Expense expense = expenses.save(new Expense(user.getId(), details(request, recordedCurrency(request, user))));
 		return response(expense);
 	}
 
-	private String createCurrency(ExpenseRequest request, UserAccount user) {
-		return request.currency() == null ? user.getDefaultCurrency() : request.currency();
+	private String recordedCurrency(ExpenseRequest request, UserAccount user) {
+		return request.recordedCurrency() == null ? user.getDefaultCurrency() : request.recordedCurrency();
 	}
 
 	public ExpensePageResponse history(ExpenseHistoryRequest request, String email) {
@@ -96,16 +96,16 @@ public class ExpenseService {
 		expenses.delete(ownedExpense(expenseId, email));
 	}
 
-	private ExpenseDetails details(ExpenseRequest request, String currency) {
+	private ExpenseDetails details(ExpenseRequest request, String recordedCurrency) {
 		if (!categories.isValid(request.categoryId())) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Category is invalid");
 		}
 		return new ExpenseDetails(
 				request.title().trim(),
-				amountMinor(request.amount(), currency),
+				amountMinor(request.amount(), recordedCurrency),
 				request.categoryId(),
 				request.date(),
-				currency,
+				recordedCurrency,
 				optionalText(request.note()));
 	}
 

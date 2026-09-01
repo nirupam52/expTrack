@@ -1,392 +1,73 @@
 <script lang="ts">
-	import { onMount, tick } from 'svelte';
+	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
-	import { del, get, HttpError, post, put } from '$lib/api/client';
-	import {
-		categoriesSchema,
-		expenseSchema,
-		sessionSchema,
-		type AuthSubmission,
-		type AccountPasswords,
-		type Category,
-		type Expense,
-		type ExpenseDraft,
-		type ExpenseHistoryFilters,
-		type Session
-	} from '$lib/api/types';
+	import { createLedgerPageController } from '$lib/ledger-page.svelte';
 	import AuthForm from '$lib/components/AuthForm.svelte';
-	import AccountSettings from '$lib/components/AccountSettings.svelte';
-	import Dashboard from '$lib/components/Dashboard.svelte';
-	import ExpenseHistory from '$lib/components/ExpenseHistory.svelte';
-	import ExpenseForm from '$lib/components/ExpenseForm.svelte';
-	import { today } from '$lib/utils/date';
-	import { amountForInput } from '$lib/utils/format-currency';
+	import AccountPage from '$lib/components/AccountPage.svelte';
+	import ExpenseWorkspace from '$lib/components/ExpenseWorkspace.svelte';
+	import ProfileMenu from '$lib/components/ProfileMenu.svelte';
 
-	type Toast = {
-		id: number;
-		kind: 'success' | 'error';
-		message: string;
-	};
-	type View = 'dashboard' | 'add' | 'history' | 'account';
-	const emptyHistoryFilters: ExpenseHistoryFilters = { query: '', categoryId: null, currency: '', from: '', to: '' };
-
-	let session = $state<Session | null>(null);
-	let categories = $state.raw<Category[]>([]);
-	let loading = $state(true);
-	let submitting = $state(false);
-	let loadError = $state('');
-	let signOutError = $state('');
-	let error = $state('');
-	let editing = $state<Expense | null>(null);
-	let expenseVersion = $state(0);
-	let view = $state<View>('dashboard');
-	let formDirty = $state(false);
-	let accountDirty = $state(false);
-	let savingCurrency = $state(false);
-	let savingPassword = $state(false);
-	let currencyError = $state('');
-	let passwordError = $state('');
-	let authNotice = $state('');
-	let historyFilters = $state<ExpenseHistoryFilters>({ ...emptyHistoryFilters });
-
-	// Bumped only by explicit viewHistory calls (nav reset, dashboard drill-down); user-applied
-	// filters reported via onFiltersChange update historyFilters without remounting ExpenseHistory.
-	let historyRemount = $state(0);
-	let toast = $state<Toast | null>(null);
-	let toastSequence = 0;
-	let profileMenuOpen = $state(false);
-	let profileMenuWrap = $state<HTMLElement | null>(null);
-	let profileTrigger = $state<HTMLButtonElement | null>(null);
+	const ledger = createLedgerPageController();
 
 	onMount(() => {
-		void loadSession();
+		void ledger.loadSession();
 	});
-
-	async function loadSession() {
-		loading = true;
-		loadError = '';
-		try {
-			session = await get('/api/auth/session', sessionSchema);
-		} catch (cause) {
-			handleSessionLoadError(cause);
-			return;
-		}
-		await loadLedger();
-		loading = false;
-	}
-
-	function handleSessionLoadError(cause: unknown) {
-		if (cause instanceof HttpError && cause.status === 401) session = null;
-		else loadError = 'Unable to load your ledger. Please try again.';
-		loading = false;
-	}
-
-	async function loadLedger() {
-		try {
-			categories = await get('/api/categories', categoriesSchema);
-		} catch {
-			loadError = 'Unable to load your ledger. Please try again.';
-		}
-	}
-
-	async function authenticate({ mode, email, password, defaultCurrency }: AuthSubmission) {
-		error = '';
-		authNotice = '';
-		submitting = true;
-		try {
-			if (mode === 'register') {
-				await post('/api/auth/register', { email, password, defaultCurrency: defaultCurrency.trim().toUpperCase() });
-			}
-			await post('/api/auth/login', new URLSearchParams({ username: email, password }), 'application/x-www-form-urlencoded');
-			await loadSession();
-		} catch {
-			error = mode === 'register' ? 'Check the account details and try again.' : 'Email or password is incorrect.';
-		} finally {
-			submitting = false;
-		}
-	}
-
-	async function addExpense(draft: ExpenseDraft) {
-		error = '';
-		submitting = true;
-		try {
-			await post('/api/expenses', draft, expenseSchema);
-			expenseVersion += 1;
-			formDirty = false;
-			return true;
-		} catch (cause) {
-			error = expenseError(cause, 'Could not save the expense. Please try again.');
-			return false;
-		} finally {
-			submitting = false;
-		}
-	}
-
-	async function updateExpense(draft: ExpenseDraft) {
-		if (!editing) return false;
-		error = '';
-		submitting = true;
-		try {
-			await put(`/api/expenses/${editing.id}`, draft, expenseSchema);
-			expenseVersion += 1;
-			formDirty = false;
-			return true;
-		} catch (cause) {
-			error = expenseError(cause, 'Could not update the expense. Please try again.');
-			return false;
-		} finally {
-			submitting = false;
-		}
-	}
-
-	async function deleteExpense(expense: Expense) {
-		try {
-			await del(`/api/expenses/${expense.id}`);
-			if (editing?.id === expense.id) {
-				editing = null;
-				error = '';
-			}
-			expenseVersion += 1;
-			showToast('success', 'Expense deleted.');
-			return true;
-		} catch {
-			showToast('error', 'Could not delete the expense. Please try again.');
-			return false;
-		}
-	}
-
-	function expenseError(cause: unknown, fallback: string) {
-		return cause instanceof HttpError && cause.status === 400
-			? `${cause.detail ? `${cause.detail}. ` : ''}Enter a title, positive amount, category, and date.`
-			: fallback;
-	}
-
-	function showToast(kind: Toast['kind'], message: string) {
-		const id = ++toastSequence;
-		toast = { id, kind, message };
-		window.setTimeout(() => {
-			if (toast?.id === id) toast = null;
-		}, 5000);
-	}
-
-	async function signOut() {
-		if (!canLeaveForm()) return;
-		signOutError = '';
-		try {
-			await post('/api/auth/logout', null);
-			session = null;
-			editing = null;
-			view = 'dashboard';
-			formDirty = false;
-			accountDirty = false;
-			authNotice = '';
-		} catch {
-			signOutError = 'Could not sign out. Please try again.';
-		}
-	}
-
-	function viewHistory(filters: Partial<ExpenseHistoryFilters> = {}) {
-		if (!canLeaveForm()) return;
-		historyFilters = { ...emptyHistoryFilters, ...filters };
-		historyRemount += 1;
-		editing = null;
-		formDirty = false;
-		accountDirty = false;
-		view = 'history';
-	}
-
-	function startAddExpense() {
-		if (view === 'add') return;
-		if (!canLeaveForm()) return;
-		editing = null;
-		error = '';
-		formDirty = false;
-		accountDirty = false;
-		view = 'add';
-	}
-
-	function viewDashboard() {
-		if (!canLeaveForm()) return;
-		editing = null;
-		formDirty = false;
-		accountDirty = false;
-		view = 'dashboard';
-	}
-
-	function canLeaveForm() {
-		if (view === 'add') return !formDirty || window.confirm('Discard the changes to this expense?');
-		if (view === 'account') return !accountDirty || window.confirm('Discard the changes to your account settings?');
-		return true;
-	}
-
-	function openAccountSettings() {
-		if (view === 'account') return;
-		if (!canLeaveForm()) return;
-		editing = null;
-		error = '';
-		formDirty = false;
-		accountDirty = false;
-		currencyError = '';
-		passwordError = '';
-		view = 'account';
-	}
-
-	async function saveDefaultCurrency(currency: string) {
-		currencyError = '';
-		savingCurrency = true;
-		try {
-			const updated = await put('/api/account/default-currency', { defaultCurrency: currency }, sessionSchema);
-			if (!updated) throw new Error('Default currency response is missing.');
-			session = updated;
-			return true;
-		} catch (cause) {
-			currencyError = cause instanceof HttpError && cause.status === 400 && cause.detail
-				? cause.detail
-				: 'Could not save the default currency. Please try again.';
-			return false;
-		} finally {
-			savingCurrency = false;
-		}
-	}
-
-	async function changePassword(passwords: AccountPasswords) {
-		passwordError = '';
-		savingPassword = true;
-		try {
-			await post('/api/account/password', passwords);
-			session = null;
-			view = 'dashboard';
-			editing = null;
-			formDirty = false;
-			accountDirty = false;
-			authNotice = 'Password changed. Sign in again.';
-			return true;
-		} catch (cause) {
-			passwordError = cause instanceof HttpError && cause.status === 400 && cause.detail
-				? cause.detail
-				: 'Could not change the password. Please try again.';
-			return false;
-		} finally {
-			savingPassword = false;
-		}
-	}
-
-	async function openProfileMenu() {
-		if (profileMenuOpen) return;
-		profileMenuOpen = true;
-		await tick();
-		profileMenuWrap?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
-	}
-
-	async function toggleProfileMenu() {
-		if (profileMenuOpen) {
-			closeProfileMenu(true);
-			return;
-		}
-		await openProfileMenu();
-	}
-
-	function closeProfileMenu(refocus = false) {
-		profileMenuOpen = false;
-		if (refocus) profileTrigger?.focus();
-	}
-
-	function profileTriggerKeydown(event: KeyboardEvent) {
-		if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-			event.preventDefault();
-			void openProfileMenu();
-		}
-	}
-
-	function profileMenuKeydown(event: KeyboardEvent) {
-		const items = Array.from(profileMenuWrap?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []);
-		const index = items.indexOf(document.activeElement as HTMLElement);
-		if (event.key === 'ArrowDown') {
-			event.preventDefault();
-			items[(index + 1) % items.length]?.focus();
-		} else if (event.key === 'ArrowUp') {
-			event.preventDefault();
-			items[(index - 1 + items.length) % items.length]?.focus();
-		} else if (event.key === 'Escape') {
-			event.preventDefault();
-			closeProfileMenu(true);
-		} else if (event.key === 'Tab') {
-			closeProfileMenu();
-		}
-	}
-
-	function chooseAccountSettings() {
-		closeProfileMenu();
-		openAccountSettings();
-	}
-
-	function chooseSignOut() {
-		closeProfileMenu();
-		void signOut();
-	}
-
-	function handleWindowPointerDown(event: PointerEvent) {
-		if (profileMenuOpen && profileMenuWrap && !profileMenuWrap.contains(event.target as Node)) closeProfileMenu();
-	}
-
-	function warnBeforeUnload(event: BeforeUnloadEvent) {
-		if (!accountDirty) return;
-		event.preventDefault();
-		event.returnValue = '';
-	}
-
-	function monthEnd(month: string) {
-		const [year, monthNumber] = month.split('-').map(Number);
-		return `${month}-${new Date(Date.UTC(year, monthNumber, 0)).getUTCDate().toString().padStart(2, '0')}`;
-	}
 </script>
 
-<svelte:window onpointerdown={handleWindowPointerDown} onbeforeunload={warnBeforeUnload} />
+<svelte:window onbeforeunload={ledger.warnBeforeUnload} />
 <svelte:head><title>ExpTrack</title><meta name="description" content="A private place to record everyday spending." /></svelte:head>
 
 <main class="app">
 	<header>
-		<a class="brand" href={resolve('/')} onclick={(event) => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); viewDashboard(); }}>ExpTrack</a>
-		{#if session}
-			<nav class="bottom-nav" aria-label="Main navigation"><button class={{ active: view === 'dashboard' }} aria-current={view === 'dashboard' ? 'page' : undefined} onclick={viewDashboard}>Dashboard</button><button class={{ active: view === 'add' }} aria-current={view === 'add' ? 'page' : undefined} onclick={startAddExpense}>Add expense</button><button class={{ active: view === 'history' }} aria-current={view === 'history' ? 'page' : undefined} onclick={() => viewHistory()}>History</button></nav>
-			<div class="account-actions">
-				<div class="profile-menu-wrap" bind:this={profileMenuWrap} onfocusout={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) closeProfileMenu(); }}>
-					<button class="quiet" bind:this={profileTrigger} aria-haspopup="menu" aria-expanded={profileMenuOpen} onclick={() => void toggleProfileMenu()} onkeydown={profileTriggerKeydown}>Profile</button>
-					{#if profileMenuOpen}
-						<div class="profile-menu" role="menu" tabindex="-1" aria-label="Profile" onkeydown={profileMenuKeydown}>
-							<button role="menuitem" onclick={chooseAccountSettings}>Account settings</button>
-							<button role="menuitem" onclick={chooseSignOut}>Sign out</button>
-						</div>
-					{/if}
-				</div>
-				{#if signOutError}<p class="error" role="alert">{signOutError}</p>{/if}
-			</div>
+		<a class="brand" href={resolve('/')} onclick={(event) => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); ledger.viewDashboard(); }}>ExpTrack</a>
+		{#if ledger.model.session}
+			<nav class="bottom-nav" aria-label="Main navigation"><button class={{ active: ledger.model.view === 'dashboard' }} aria-current={ledger.model.view === 'dashboard' ? 'page' : undefined} onclick={ledger.viewDashboard}>Dashboard</button><button class={{ active: ledger.model.view === 'add' }} aria-current={ledger.model.view === 'add' ? 'page' : undefined} onclick={ledger.startAddExpense}>Add expense</button><button class={{ active: ledger.model.view === 'history' }} aria-current={ledger.model.view === 'history' ? 'page' : undefined} onclick={() => ledger.viewHistory()}>History</button></nav>
+			<ProfileMenu signOutError={ledger.model.signOutError} onAccountSettings={ledger.openAccountSettings} onSignOut={() => void ledger.signOut()} />
 		{/if}
 	</header>
 
-	{#if loading}
+	{#if ledger.model.loading}
 		<p class="status">Loading your ledger…</p>
-	{:else if loadError}
+	{:else if ledger.model.loadError}
 		<section class="auth" aria-labelledby="load-error-title">
 			<h1 id="load-error-title">Your ledger is unavailable.</h1>
-			<p class="error" role="alert">{loadError}</p>
-			<button class="primary" onclick={loadSession}>Retry</button>
+			<p class="error" role="alert">{ledger.model.loadError}</p>
+			<button class="primary" onclick={ledger.loadSession}>Retry</button>
 		</section>
-	{:else if !session}
-		<AuthForm {submitting} {error} notice={authNotice} onSubmit={authenticate} onModeChange={() => error = ''} />
+	{:else if !ledger.model.session}
+		<AuthForm submitting={ledger.model.submitting} error={ledger.model.error} notice={ledger.model.authNotice} onSubmit={ledger.authenticate} onModeChange={ledger.clearAuthError} />
+	{:else if ledger.model.view === 'account'}
+		<AccountPage
+			session={ledger.model.session}
+			savingCurrency={ledger.model.savingCurrency}
+			savingPassword={ledger.model.savingPassword}
+			currencyError={ledger.model.currencyError}
+			passwordError={ledger.model.passwordError}
+			onDirty={ledger.setAccountDirty}
+			onSaveCurrency={ledger.saveDefaultCurrency}
+			onChangePassword={ledger.changePassword}
+		/>
 	{:else}
-		{#if view === 'dashboard'}
-			<Dashboard {categories} defaultCurrency={session.defaultCurrency} onAddExpense={startAddExpense} onViewHistory={() => viewHistory()} onViewCategory={(categoryId, month, currency) => viewHistory({ categoryId, currency, from: `${month}-01`, to: monthEnd(month) })} />
-		{:else if view === 'add'}
-			<section class="ledger" aria-labelledby="add-expense-title">
-				<div class="heading"><div><p class="eyebrow">{editing ? 'Correction' : 'Your ledger'}</p><h1 id="add-expense-title">{editing ? 'Edit expense' : 'Add an expense'}</h1></div><p>{editing?.currency ?? session.defaultCurrency}</p></div>
-				{#if editing}{#key editing.id}<ExpenseForm {categories} initial={{ title: editing.title, amount: amountForInput(editing), categoryId: editing.categoryId, date: editing.date, note: editing.note ?? '', currency: editing.currency }} {submitting} {error} submitLabel="Save changes" onCancel={() => { editing = null; error = ''; formDirty = false; view = 'history'; }} onDirty={() => formDirty = true} onSubmit={updateExpense} />{/key}{:else}<ExpenseForm {categories} initial={{ title: '', amount: '', categoryId: categories[0]?.id ?? null, date: today(), note: '', currency: session.defaultCurrency }} {submitting} {error} onDirty={() => formDirty = true} onSubmit={addExpense} />{/if}
-			</section>
-		{:else if view === 'account'}
-			<AccountSettings email={session.email} createdAt={session.createdAt} defaultCurrency={session.defaultCurrency} {savingCurrency} {savingPassword} {currencyError} {passwordError} onDirty={(dirty) => accountDirty = dirty} onSaveCurrency={saveDefaultCurrency} onChangePassword={changePassword} />
-		{:else}
-			{#key historyRemount}<ExpenseHistory {categories} initialFilters={historyFilters} reloadVersion={expenseVersion} onEdit={(expense) => { editing = expense; error = ''; view = 'add'; }} onDelete={deleteExpense} onFiltersChange={(filters) => historyFilters = filters} />{/key}
-		{/if}
-		{#if toast}<p class:toast-error={toast.kind === 'error'} class="toast" role={toast.kind === 'error' ? 'alert' : 'status'}>{toast.message}</p>{/if}
+		<ExpenseWorkspace
+			session={ledger.model.session}
+			categories={ledger.model.categories}
+			view={ledger.model.view}
+			editing={ledger.model.editing}
+			submitting={ledger.model.submitting}
+			error={ledger.model.error}
+			expenseVersion={ledger.model.expenseVersion}
+			historyFilters={ledger.model.historyFilters}
+			historyRemount={ledger.model.historyRemount}
+			onStartAddExpense={ledger.startAddExpense}
+			onAddExpense={ledger.addExpense}
+			onUpdateExpense={ledger.updateExpense}
+			onCancelEdit={ledger.cancelEdit}
+			onViewHistory={ledger.viewHistory}
+			onEdit={ledger.editExpense}
+			onDelete={ledger.deleteExpense}
+			onFiltersChange={ledger.updateHistoryFilters}
+			onDirty={ledger.markExpenseDirty}
+		/>
+		{#if ledger.model.toast}<p class:toast-error={ledger.model.toast.kind === 'error'} class="toast" role={ledger.model.toast.kind === 'error' ? 'alert' : 'status'}>{ledger.model.toast.message}</p>{/if}
 	{/if}
 </main>

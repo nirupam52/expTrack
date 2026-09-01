@@ -11,6 +11,7 @@ const dashboard = {
 async function mockLedger(page: Page) {
 	await page.route('**/api/auth/session', (route) => route.fulfill({ json: session }));
 	await page.route('**/api/categories', (route) => route.fulfill({ json: categories }));
+	await page.route('**/api/auth/csrf', (route) => route.fulfill({ json: { token: 'test-token' } }));
 }
 
 test('loads the dashboard', async ({ page }) => {
@@ -86,6 +87,54 @@ test('prioritises adding an expense in the desktop overview', async ({ page }) =
 	await addExpense.click();
 	await expect(page.getByRole('heading', { name: 'Add an expense' })).toBeVisible();
 });
+test('preserves the currency captured by an open expense form after the default changes', async ({ page }) => {
+	let currentDefaultCurrency = 'USD';
+	const expenseBodies: Array<Record<string, unknown>> = [];
+	await mockLedger(page);
+	await page.route('**/api/account/default-currency', (route) => {
+		const body = route.request().postDataJSON() as { defaultCurrency: string };
+		currentDefaultCurrency = body.defaultCurrency;
+		return route.fulfill({ json: { ...session, defaultCurrency: currentDefaultCurrency } });
+	});
+	await page.route('**/api/expenses', (route) => {
+		expenseBodies.push(route.request().postDataJSON() as Record<string, unknown>);
+		return route.fulfill({
+			json: { id: 2, title: 'Coffee', amountMinor: '1250', categoryId: 1, date: '2026-08-20', currency: 'USD', note: null }
+		});
+	});
+
+	await page.goto('/');
+	await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'Add expense', exact: true }).click();
+	await expect(page.getByRole('heading', { name: 'Add an expense' })).toBeVisible();
+	await expect(page.locator('section[aria-labelledby="add-expense-title"] .heading > p')).toHaveText('USD');
+
+	const updateResult = await page.evaluate(async () => {
+		const csrf = await fetch('/api/auth/csrf').then((response) => response.json() as Promise<{ token: string }>);
+		const response = await fetch('/api/account/default-currency', {
+			method: 'PUT',
+			headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf.token },
+			body: JSON.stringify({ defaultCurrency: 'EUR' })
+		});
+		return response.ok;
+	});
+	expect(updateResult).toBe(true);
+	expect(currentDefaultCurrency).toBe('EUR');
+
+	await page.getByRole('textbox', { name: 'What was it?' }).fill('Coffee');
+	await page.getByRole('textbox', { name: 'Amount' }).fill('12.50');
+	await page.getByRole('textbox', { name: 'Date' }).fill('2026-08-20');
+	await page.getByRole('button', { name: 'Save expense' }).click();
+	await expect.poll(() => expenseBodies).toHaveLength(1);
+	expect(expenseBodies[0]).toMatchObject({
+		title: 'Coffee',
+		amount: '12.50',
+		categoryId: 1,
+		date: '2026-08-20',
+		note: '',
+		recordedCurrency: 'USD'
+	});
+});
+
 
 test('shows a dashboard error and retries', async ({ page }) => {
 	let requests = 0;

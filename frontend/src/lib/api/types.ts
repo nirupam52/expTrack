@@ -67,7 +67,7 @@ export type ExpenseDraft = {
 	categoryId: number | null;
 	date: string;
 	note: string;
-	currency?: string;
+	recordedCurrency?: string;
 };
 
 export type AccountPasswords = {
