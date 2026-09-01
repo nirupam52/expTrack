@@ -22,7 +22,8 @@ public final class CurrencySnapshotService {
 	}
 
 	public static String issue(String email, String currency) {
-		String payload = normalizeEmail(email) + "|" + normalizeCurrency(currency);
+		String emailPart = ENCODER.encodeToString(normalizeEmail(email).getBytes(StandardCharsets.UTF_8));
+		String payload = emailPart + "." + normalizeCurrency(currency);
 		byte[] payloadBytes = payload.getBytes(StandardCharsets.UTF_8);
 		return ENCODER.encodeToString(payloadBytes) + "." + ENCODER.encodeToString(sign(payloadBytes));
 	}
@@ -35,8 +36,10 @@ public final class CurrencySnapshotService {
 			byte[] payload = DECODER.decode(parts[0]);
 			byte[] signature = DECODER.decode(parts[1]);
 			if (!MessageDigest.isEqual(signature, sign(payload))) return Optional.empty();
-			String[] values = new String(payload, StandardCharsets.UTF_8).split("\\|", -1);
-			if (values.length != 2 || !normalizeEmail(email).equals(values[0])) return Optional.empty();
+			String[] values = new String(payload, StandardCharsets.UTF_8).split("\\.", -1);
+			if (values.length != 2) return Optional.empty();
+			String tokenEmail = new String(DECODER.decode(values[0]), StandardCharsets.UTF_8);
+			if (!normalizeEmail(email).equals(tokenEmail)) return Optional.empty();
 			return Optional.of(normalizeCurrency(values[1]));
 		} catch (IllegalArgumentException exception) {
 			return Optional.empty();
