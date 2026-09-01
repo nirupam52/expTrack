@@ -99,12 +99,44 @@ class AccountEndpointTest {
 		assertThat(mismatch.statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 		assertThat(errorText(mismatch)).contains("confirmation");
 
-		assertThat(password(PASSWORD, "only-14-chars", "only-14-chars").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+		assertThat(password(PASSWORD, "a".repeat(14), "a".repeat(14)).statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 		assertThat(password(PASSWORD, "a".repeat(65), "a".repeat(65)).statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 		assertThat(password(PASSWORD, "\uD83D\uDE00".repeat(8), "\uD83D\uDE00".repeat(8)).statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 
 		assertThat(signIn(browser, "guard@example.com", PASSWORD).statusCode()).isEqualTo(HttpStatus.NO_CONTENT.value());
 	}
+
+	@Test
+	void passwordChangeAcceptsFifteenCodePointPasswords() throws Exception {
+		registerAndSignIn(browser, "minimum@example.com");
+		String newPassword = "a".repeat(15);
+
+		assertThat(password(PASSWORD, newPassword, newPassword).statusCode()).isEqualTo(HttpStatus.NO_CONTENT.value());
+	}
+
+	@Test
+	void passwordChangeAcceptsSixtyFourCodePointPasswords() throws Exception {
+		registerAndSignIn(browser, "maximum@example.com");
+		String newPassword = "a".repeat(64);
+
+		assertThat(password(PASSWORD, newPassword, newPassword).statusCode()).isEqualTo(HttpStatus.NO_CONTENT.value());
+	}
+
+	@Test
+	void passwordChangeMeasuresUnicodePasswordsInCodePoints() throws Exception {
+		registerAndSignIn(browser, "unicode-boundary@example.com");
+		String emoji = "\uD83D\uDE00";
+		String validPassword = emoji.repeat(15);
+		String shortPassword = emoji.repeat(14);
+
+		assertThat(password(PASSWORD, shortPassword, shortPassword).statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+		assertThat(password(PASSWORD, validPassword, validPassword).statusCode()).isEqualTo(HttpStatus.NO_CONTENT.value());
+
+		HttpClient fresh = newBrowser();
+		assertThat(signIn(fresh, "unicode-boundary@example.com", validPassword).statusCode()).isEqualTo(HttpStatus.NO_CONTENT.value());
+	}
+
+
 
 	@Test
 	void passwordChangeAcceptsUnicodePasswordsMeasuredInCodePoints() throws Exception {

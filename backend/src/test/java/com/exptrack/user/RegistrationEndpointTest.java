@@ -40,11 +40,33 @@ class RegistrationEndpointTest {
 		assertThat(register("not-an-email", "correct-horse-battery-staple", "USD").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 		assertThat(register("ava@", "correct-horse-battery-staple", "USD").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 		assertThat(register("cam@example.com", "short", "USD").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
-		assertThat(register("cam@example.com", "            ", "USD").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
-		assertThat(register("eli@example.com", "a".repeat(14), "USD").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
-		assertThat(register("fay@example.com", "a".repeat(65), "USD").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 		assertThat(register("cam@example.com", "correct-horse-battery-staple", "").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 		assertThat(register("dan@example.com", "correct-horse-battery-staple", "invalid").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+	}
+
+	@Test
+	void registrationAcceptsPasswordsAtBothInclusiveCodePointBoundaries() throws Exception {
+		assertThat(register("min@example.com", "a".repeat(15), "USD").statusCode()).isEqualTo(HttpStatus.CREATED.value());
+		assertThat(register("max@example.com", "a".repeat(64), "USD").statusCode()).isEqualTo(HttpStatus.CREATED.value());
+	}
+
+	@Test
+	void registrationRejectsPasswordsOutsideInclusiveCodePointBoundaries() throws Exception {
+		assertThat(register("short-boundary@example.com", "a".repeat(14), "USD").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+		assertThat(register("long-boundary@example.com", "a".repeat(65), "USD").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+	}
+
+	@Test
+	void registrationMeasuresUnicodePasswordsInCodePoints() throws Exception {
+		String emoji = "\uD83D\uDE00";
+
+		assertThat(register("unicode-min@example.com", emoji.repeat(15), "USD").statusCode()).isEqualTo(HttpStatus.CREATED.value());
+		assertThat(register("unicode-short@example.com", emoji.repeat(14), "USD").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+	}
+
+	@Test
+	void registrationAcceptsWhitespaceOnlyPasswordsWhenLengthIsValid() throws Exception {
+		assertThat(register("whitespace@example.com", " ".repeat(15), "USD").statusCode()).isEqualTo(HttpStatus.CREATED.value());
 	}
 
 	@Test
