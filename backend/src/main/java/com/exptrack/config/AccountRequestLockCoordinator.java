@@ -2,6 +2,7 @@ package com.exptrack.config;
 
 import java.io.IOException;
 import java.util.Locale;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 
 import jakarta.servlet.ServletException;
@@ -11,26 +12,39 @@ import org.springframework.stereotype.Component;
 @Component
 final class AccountRequestLockCoordinator {
 
-	private static final int STRIPE_COUNT = 64;
-	private final ReentrantLock[] stripes = createStripes();
+	private final ConcurrentHashMap<String, AccountLock> locks = new ConcurrentHashMap<>();
 
 	void execute(String accountKey, RequestAction action) throws IOException, ServletException {
-		ReentrantLock lock = lockFor(accountKey);
-		if (lock == null) {
+		String normalized = normalize(accountKey);
+		if (normalized == null) {
 			action.run();
 			return;
 		}
-		lock.lock();
+		AccountLock accountLock = retain(normalized);
 		try {
+			accountLock.lock.lock();
 			action.run();
-		} finally {
-			lock.unlock();
+		}
+		finally {
+			accountLock.lock.unlock();
+			release(normalized, accountLock);
 		}
 	}
 
-	private ReentrantLock lockFor(String accountKey) {
-		String normalized = normalize(accountKey);
-		return normalized == null ? null : stripes[Math.floorMod(normalized.hashCode(), STRIPE_COUNT)];
+	private AccountLock retain(String accountKey) {
+		return locks.compute(accountKey, (ignored, current) -> {
+			AccountLock accountLock = current == null ? new AccountLock() : current;
+			accountLock.references++;
+			return accountLock;
+		});
+	}
+
+	private void release(String accountKey, AccountLock accountLock) {
+		locks.computeIfPresent(accountKey, (ignored, current) -> {
+			if (current != accountLock) return current;
+			current.references--;
+			return current.references == 0 ? null : current;
+		});
 	}
 
 	private String normalize(String accountKey) {
@@ -41,12 +55,9 @@ final class AccountRequestLockCoordinator {
 		return normalized.isEmpty() ? null : normalized;
 	}
 
-	private ReentrantLock[] createStripes() {
-		ReentrantLock[] locks = new ReentrantLock[STRIPE_COUNT];
-		for (int index = 0; index < locks.length; index++) {
-			locks[index] = new ReentrantLock();
-		}
-		return locks;
+	private static final class AccountLock {
+		private final ReentrantLock lock = new ReentrantLock();
+		private int references;
 	}
 
 	@FunctionalInterface
