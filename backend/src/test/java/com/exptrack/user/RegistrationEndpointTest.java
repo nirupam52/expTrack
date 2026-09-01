@@ -41,6 +41,8 @@ class RegistrationEndpointTest {
 		assertThat(register("ava@", "correct-horse-battery-staple", "USD").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 		assertThat(register("cam@example.com", "short", "USD").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 		assertThat(register("cam@example.com", "            ", "USD").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+		assertThat(register("eli@example.com", "a".repeat(14), "USD").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+		assertThat(register("fay@example.com", "a".repeat(65), "USD").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 		assertThat(register("cam@example.com", "correct-horse-battery-staple", "").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 		assertThat(register("dan@example.com", "correct-horse-battery-staple", "invalid").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 	}

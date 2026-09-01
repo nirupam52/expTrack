@@ -28,14 +28,23 @@ public class RegistrationService {
 	public void register(RegistrationRequest request) {
 		String email = normalizeEmail(request.email());
 		String currency = currency(request.defaultCurrency());
+		String password = password(request.password());
 		if (users.existsByEmailIgnoreCase(email)) {
 			return;
 		}
 		try {
-			users.saveAndFlush(new UserAccount(email, passwordEncoder.encode(request.password()), currency));
+			users.saveAndFlush(new UserAccount(email, passwordEncoder.encode(password), currency));
 		} catch (DataIntegrityViolationException exception) {
 			return;
 		}
+	}
+
+	private String password(String value) {
+		if (!PasswordPolicy.accepts(value)) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password must be between "
+					+ PasswordPolicy.MIN_CODE_POINTS + " and " + PasswordPolicy.MAX_CODE_POINTS + " characters");
+		}
+		return value;
 	}
 
 	private String normalizeEmail(String email) {

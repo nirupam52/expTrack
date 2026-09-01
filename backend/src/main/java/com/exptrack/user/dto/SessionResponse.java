@@ -1,4 +1,6 @@
 package com.exptrack.user.dto;
 
-public record SessionResponse(String email, String defaultCurrency) {
+import java.time.Instant;
+
+public record SessionResponse(String email, String defaultCurrency, Instant createdAt) {
 }

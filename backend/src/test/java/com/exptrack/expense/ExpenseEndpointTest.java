@@ -110,12 +110,13 @@ class ExpenseEndpointTest {
 
 		assertThat(created.statusCode()).isEqualTo(HttpStatus.CREATED.value());
 		JsonNode createdExpense = json.readTree(created.body());
+		int createdId = createdExpense.get("id").asInt();
 		assertThat(createdExpense.get("amountMinor").isTextual()).isTrue();
 		assertThat(createdExpense.get("amountMinor").asText()).isEqualTo("9223372036854775807");
 		assertThat(createdExpense.get("categoryId").asInt()).isEqualTo(1);
 		assertThat(createdExpense.get("currency").asText()).isEqualTo("USD");
-		assertThat(jdbc.queryForObject("SELECT category_id FROM expenses WHERE title = ?", Integer.class, "Coffee")).isEqualTo(1);
-		assertThat(jdbc.queryForObject("SELECT currency FROM expenses WHERE title = ?", String.class, "Coffee")).isEqualTo("USD");
+		assertThat(jdbc.queryForObject("SELECT category_id FROM expenses WHERE id = ?", Integer.class, createdId)).isEqualTo(1);
+		assertThat(jdbc.queryForObject("SELECT currency FROM expenses WHERE id = ?", String.class, createdId)).isEqualTo("USD");
 		assertThat(recent.statusCode()).isEqualTo(HttpStatus.OK.value());
 		assertThat(json.readTree(recent.body()).get("items").get(0).get("title").asText()).isEqualTo("Coffee");
 		assertThat(json.readTree(otherRecent.body()).get("items")).isEmpty();
