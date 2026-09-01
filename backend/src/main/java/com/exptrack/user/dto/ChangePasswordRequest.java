@@ -1,9 +1,9 @@
 package com.exptrack.user.dto;
 
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 public record ChangePasswordRequest(
-		@NotBlank String currentPassword,
-		String newPassword,
-		String newPasswordConfirmation) {
+		@NotNull String currentPassword,
+		@NotNull String newPassword,
+		@NotNull String newPasswordConfirmation) {
 }

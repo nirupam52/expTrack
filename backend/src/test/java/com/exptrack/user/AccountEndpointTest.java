@@ -29,16 +29,19 @@ class AccountEndpointTest {
 
 	private static final String PASSWORD = "correct-horse-battery-staple";
 
-	@LocalServerPort
-	private int port;
-
-	private final HttpClient browser = newBrowser();
+	private final int port;
+	private final HttpClient browser;
 	private final ObjectMapper json = new ObjectMapper();
+	private final JdbcTemplate jdbc;
+	private final PasswordEncoder passwords;
 
 	@Autowired
-	private JdbcTemplate jdbc;
-	@Autowired
-	private PasswordEncoder passwords;
+	AccountEndpointTest(@LocalServerPort int port, JdbcTemplate jdbc, PasswordEncoder passwords) {
+		this.port = port;
+		this.browser = newBrowser();
+		this.jdbc = jdbc;
+		this.passwords = passwords;
+	}
 
 	@Test
 	void sessionShowsAccountCreationTimeForNewAccountsAndNothingForLegacyAccounts() throws Exception {
@@ -63,23 +66,31 @@ class AccountEndpointTest {
 	@Test
 	void defaultCurrencyUpdateValidatesTheCurrencyAndPersistsTheSavedValue() throws Exception {
 		registerAndSignIn(browser, "cur@example.com");
+		assertCurrencyUpdate();
+		assertThat(session(browser).get("defaultCurrency").asText()).isEqualTo("EUR");
+		assertInvalidCurrency();
+		assertMissingCsrfRejected();
+	}
 
+	private void assertCurrencyUpdate() throws Exception {
 		HttpResponse<String> updated = put(browser, "/api/account/default-currency", Map.of("defaultCurrency", "EUR"));
 		assertThat(updated.statusCode()).isEqualTo(HttpStatus.OK.value());
 		JsonNode body = json.readTree(updated.body());
 		assertThat(body.get("email").asText()).isEqualTo("cur@example.com");
 		assertThat(body.get("defaultCurrency").asText()).isEqualTo("EUR");
 		assertThat(body.get("createdAt").isNull()).isFalse();
+	}
 
-		assertThat(session(browser).get("defaultCurrency").asText()).isEqualTo("EUR");
-
+	private void assertInvalidCurrency() throws Exception {
 		HttpResponse<String> invalid = put(browser, "/api/account/default-currency", Map.of("defaultCurrency", "not-a-currency"));
 		assertThat(invalid.statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 		assertThat(errorText(invalid)).contains("Currency");
 
 		HttpResponse<String> blank = put(browser, "/api/account/default-currency", Map.of("defaultCurrency", ""));
 		assertThat(blank.statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+	}
 
+	private void assertMissingCsrfRejected() throws Exception {
 		HttpResponse<String> withoutCsrf = browser.send(HttpRequest.newBuilder(URI.create(url("/api/account/default-currency")))
 				.header("Content-Type", "application/json")
 				.PUT(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(Map.of("defaultCurrency", "CHF"))))
@@ -121,6 +132,24 @@ class AccountEndpointTest {
 
 		assertThat(password(PASSWORD, newPassword, newPassword).statusCode()).isEqualTo(HttpStatus.NO_CONTENT.value());
 	}
+	@Test
+	void passwordChangeAcceptsWhitespaceOnlyPasswordsWhenLengthIsValid() throws Exception {
+		registerAndSignIn(browser, "whitespace-password@example.com");
+		String newPassword = " ".repeat(15);
+
+		assertThat(password(PASSWORD, newPassword, newPassword).statusCode()).isEqualTo(HttpStatus.NO_CONTENT.value());
+	}
+	@Test
+	void passwordChangeAcceptsWhitespaceOnlyCurrentPassword() throws Exception {
+		String currentPassword = " ".repeat(15);
+		registerAndSignIn(browser, "whitespace-current@example.com", currentPassword);
+		String newPassword = "a".repeat(15);
+
+		assertThat(password(currentPassword, newPassword, newPassword).statusCode())
+				.isEqualTo(HttpStatus.NO_CONTENT.value());
+	}
+
+
 
 	@Test
 	void passwordChangeMeasuresUnicodePasswordsInCodePoints() throws Exception {
@@ -188,10 +217,14 @@ class AccountEndpointTest {
 	}
 
 	private void registerAndSignIn(HttpClient client, String email) throws Exception {
-		HttpResponse<Void> registration = post(client, "/api/auth/register",
-				Map.of("email", email, "password", PASSWORD, "defaultCurrency", "USD"), HttpResponse.BodyHandlers.discarding());
+		registerAndSignIn(client, email, PASSWORD);
+	}
+
+	private void registerAndSignIn(HttpClient client, String email, String password) throws Exception {
+		HttpResponse<Void> registration = postWithoutBody(client, "/api/auth/register",
+				Map.of("email", email, "password", password, "defaultCurrency", "USD"));
 		assertThat(registration.statusCode()).isEqualTo(HttpStatus.CREATED.value());
-		assertThat(signIn(client, email, PASSWORD).statusCode()).isEqualTo(HttpStatus.NO_CONTENT.value());
+		assertThat(signIn(client, email, password).statusCode()).isEqualTo(HttpStatus.NO_CONTENT.value());
 	}
 
 	private HttpResponse<Void> signIn(HttpClient client, String email, String password) throws Exception {
@@ -210,17 +243,20 @@ class AccountEndpointTest {
 				.build(), HttpResponse.BodyHandlers.ofString());
 	}
 
-	private <T> HttpResponse<T> post(HttpClient client, String path, Map<String, ?> body,
-			HttpResponse.BodyHandler<T> handler) throws Exception {
-		return client.send(HttpRequest.newBuilder(URI.create(url(path)))
-				.header("Content-Type", "application/json")
-				.header("X-CSRF-TOKEN", csrfToken(client))
-				.POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)))
-				.build(), handler);
+	private HttpResponse<Void> postWithoutBody(HttpClient client, String path, Map<String, ?> body) throws Exception {
+		return client.send(postRequest(client, path, body), HttpResponse.BodyHandlers.discarding());
 	}
 
 	private HttpResponse<String> post(HttpClient client, String path, Map<String, ?> body) throws Exception {
-		return post(client, path, body, HttpResponse.BodyHandlers.ofString());
+		return client.send(postRequest(client, path, body), HttpResponse.BodyHandlers.ofString());
+	}
+
+	private HttpRequest postRequest(HttpClient client, String path, Map<String, ?> body) throws Exception {
+		return HttpRequest.newBuilder(URI.create(url(path)))
+				.header("Content-Type", "application/json")
+				.header("X-CSRF-TOKEN", csrfToken(client))
+				.POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)))
+				.build();
 	}
 
 	private String csrfToken(HttpClient client) throws Exception {

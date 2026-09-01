@@ -23,13 +23,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 		properties = {"spring.datasource.url=jdbc:sqlite::memory:", "server.servlet.session.cookie.secure=false", "exptrack.auth.max-attempts=100"})
 class RegistrationEndpointTest {
 
-	@LocalServerPort
-	private int port;
-
-	private HttpClient browser = newBrowser();
+	private final int port;
+	private HttpClient browser;
 	private final ObjectMapper json = new ObjectMapper();
+	private final JdbcTemplate jdbc;
+
 	@Autowired
-	private JdbcTemplate jdbc;
+	RegistrationEndpointTest(@LocalServerPort int port, JdbcTemplate jdbc) {
+		this.port = port;
+		this.browser = newBrowser();
+		this.jdbc = jdbc;
+	}
 
 
 	@Test
