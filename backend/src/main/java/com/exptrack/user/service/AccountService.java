@@ -44,15 +44,15 @@ public class AccountService {
 	@Transactional
 	public void changePassword(String email, ChangePasswordRequest request, HttpSession currentSession) {
 		UserAccount user = find(email);
-		if (!passwords.matches(request.currentPassword(), user.getPasswordHash())) {
-			throw badRequest("Current password is incorrect");
+		if (!PasswordPolicy.accepts(request.newPassword())) {
+			throw badRequest("New password must be between " + PasswordPolicy.MIN_CODE_POINTS + " and "
+					+ PasswordPolicy.MAX_CODE_POINTS + " characters");
 		}
 		if (!Objects.equals(request.newPassword(), request.newPasswordConfirmation())) {
 			throw badRequest("New password and confirmation do not match");
 		}
-		if (!PasswordPolicy.accepts(request.newPassword())) {
-			throw badRequest("New password must be between " + PasswordPolicy.MIN_CODE_POINTS + " and "
-					+ PasswordPolicy.MAX_CODE_POINTS + " characters");
+		if (!passwords.matches(request.currentPassword(), user.getPasswordHash())) {
+			throw badRequest("Current password is incorrect");
 		}
 		user.setPasswordHash(passwords.encode(request.newPassword()));
 		registerSessionExpiration(email, currentSession);
