@@ -22,6 +22,15 @@ class PreHashingBCryptEncoderTest {
 	}
 
 	@Test
+	void retainsLegacyBCryptCompatibilityAbove72Utf8Bytes() {
+		String rawPassword = "é".repeat(40);
+		String encoded = bcrypt.encode(rawPassword);
+
+		assertThat(rawPassword.getBytes(StandardCharsets.UTF_8)).hasSize(80);
+		assertThat(encoder.matches(rawPassword, encoded)).isTrue();
+	}
+
+	@Test
 	void preHashesPasswordsBeyondThe72Utf8ByteBoundary() {
 		String boundaryPassword = "a".repeat(70) + "é";
 		String longerPassword = boundaryPassword + "a";
