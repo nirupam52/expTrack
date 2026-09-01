@@ -2,6 +2,7 @@ package com.exptrack.user.controller;
 
 import java.security.Principal;
 
+import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 
 import com.exptrack.user.dto.ChangePasswordRequest;
@@ -33,7 +34,8 @@ public class AccountController {
 
 	@PostMapping("/password")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	void password(Principal principal, @Valid @RequestBody ChangePasswordRequest request) {
+	void password(Principal principal, HttpSession session, @Valid @RequestBody ChangePasswordRequest request) {
 		accounts.changePassword(principal.getName(), request);
+		accounts.expireSessions(principal.getName(), session);
 	}
 }

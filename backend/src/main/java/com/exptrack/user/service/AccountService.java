@@ -3,6 +3,8 @@ package com.exptrack.user.service;
 import java.util.Currency;
 import java.util.Objects;
 
+import jakarta.servlet.http.HttpSession;
+
 import com.exptrack.user.dto.ChangePasswordRequest;
 import com.exptrack.user.dto.SessionResponse;
 import com.exptrack.user.entity.UserAccount;
@@ -51,7 +53,11 @@ public class AccountService {
 					+ PasswordPolicy.MAX_CODE_POINTS + " characters");
 		}
 		user.setPasswordHash(passwords.encode(request.newPassword()));
+	}
+
+	public void expireSessions(String email, HttpSession currentSession) {
 		sessions.getAllSessions(email, false).forEach(SessionInformation::expireNow);
+		currentSession.invalidate();
 	}
 
 	private UserAccount find(String email) {

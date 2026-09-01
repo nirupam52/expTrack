@@ -9,6 +9,9 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -35,17 +38,25 @@ class AuthRateLimitFilter extends OncePerRequestFilter {
 	@Override
 	protected boolean shouldNotFilter(HttpServletRequest request) {
 		return !"POST".equals(request.getMethod()) || !("/api/auth/register".equals(request.getServletPath())
-				|| "/api/auth/login".equals(request.getServletPath()));
+				|| "/api/auth/login".equals(request.getServletPath())
+				|| "/api/account/password".equals(request.getServletPath()));
 	}
 
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
 			throws ServletException, IOException {
-		if (!accepts(request.getRemoteAddr() + request.getServletPath())) {
+		if (!accepts(clientKey(request))) {
 			response.setStatus(429);
 			return;
 		}
 		chain.doFilter(request, response);
+	}
+
+	private String clientKey(HttpServletRequest request) {
+		String key = request.getRemoteAddr() + "|" + request.getServletPath();
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		return authentication == null || !authentication.isAuthenticated()
+				|| authentication instanceof AnonymousAuthenticationToken ? key : key + "|" + authentication.getName();
 	}
 
 	private synchronized boolean accepts(String client) {

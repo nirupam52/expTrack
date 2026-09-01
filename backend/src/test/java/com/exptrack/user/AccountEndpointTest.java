@@ -199,6 +199,16 @@ class AccountEndpointTest {
 		assertThat(signIn(newBrowser(), "keeper@example.com", PASSWORD).statusCode()).isEqualTo(HttpStatus.UNAUTHORIZED.value());
 	}
 
+	@Test
+	void passwordChangeAllowsSameBrowserToSignInWithNewPassword() throws Exception {
+		registerAndSignIn(browser, "same-browser@example.com");
+		String newPassword = "a-brand-new-password";
+
+		assertThat(password(PASSWORD, newPassword, newPassword).statusCode()).isEqualTo(HttpStatus.NO_CONTENT.value());
+		assertThat(signIn(browser, "same-browser@example.com", newPassword).statusCode())
+				.isEqualTo(HttpStatus.NO_CONTENT.value());
+	}
+
 	private String errorText(HttpResponse<String> response) throws Exception {
 		JsonNode body = json.readTree(response.body());
 		return body.path("detail").asText(body.path("message").asText());
