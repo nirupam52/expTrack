@@ -26,7 +26,7 @@
 	{#if notice}<p class="notice" role="status">{notice}</p>{/if}
 	<form class="form-stack" onsubmit={submit}>
 		<label class="field">Email <input bind:value={email} type="email" autocomplete="email" required /></label>
-		<label class="field">Password <input bind:value={password} type="password" autocomplete={mode === 'sign-in' ? 'current-password' : 'new-password'} minlength="15" required /></label>
+		<label class="field">Password <input bind:value={password} type="password" autocomplete={mode === 'sign-in' ? 'current-password' : 'new-password'} minlength={mode === 'register' ? 15 : undefined} required /></label>
 		{#if mode === 'register'}<label class="field">Default currency <input bind:value={defaultCurrency} maxlength="3" autocapitalize="characters" required /></label>{/if}
 		{#if error}<p class="error" role="alert">{error}</p>{/if}
 		<button class="primary" disabled={submitting}>{submitting ? 'Working…' : mode === 'sign-in' ? 'Sign in' : 'Create account'}</button>

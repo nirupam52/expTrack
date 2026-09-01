@@ -93,20 +93,20 @@ test('changes the password and returns to the sign-in form', async ({ page }) =>
 	await page.getByRole('button', { name: 'Change password' }).click();
 	await expect(page.getByRole('alert')).toHaveText('Enter your current password.');
 
-	await page.getByRole('textbox', { name: 'Current password' }).fill('old-password-1234');
+	await page.getByLabel('Current password').fill('old-password-1234');
 	await page.getByLabel('New password', { exact: true }).fill('short');
-	await page.getByRole('textbox', { name: 'Confirm new password' }).fill('short');
+	await page.getByLabel('Confirm new password').fill('short');
 	await page.getByRole('button', { name: 'Change password' }).click();
 	await expect(page.getByRole('alert')).toHaveText('New password must be 15 to 64 characters.');
 
 	const newPassword = 'fresh-password-5678901';
 	await page.getByLabel('New password', { exact: true }).fill(newPassword);
-	await page.getByRole('textbox', { name: 'Confirm new password' }).fill('different-password-5678');
+	await page.getByLabel('Confirm new password').fill('different-password-5678');
 	await page.getByRole('button', { name: 'Change password' }).click();
 	await expect(page.getByRole('alert')).toHaveText('New password and confirmation do not match.');
 	expect(passwordBodies).toEqual([]);
 
-	await page.getByRole('textbox', { name: 'Confirm new password' }).fill(newPassword);
+	await page.getByLabel('Confirm new password').fill(newPassword);
 	await page.getByRole('button', { name: 'Change password' }).click();
 	await expect(page.getByRole('status')).toHaveText('Password changed. Sign in again.');
 	await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();

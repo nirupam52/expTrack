@@ -49,8 +49,12 @@ public class ExpenseService {
 
 	public ExpenseResponse create(ExpenseRequest request, String email) {
 		UserAccount user = currentUser(email);
-		Expense expense = expenses.save(new Expense(user.getId(), details(request, user.getDefaultCurrency())));
+		Expense expense = expenses.save(new Expense(user.getId(), details(request, createCurrency(request, user))));
 		return response(expense);
+	}
+
+	private String createCurrency(ExpenseRequest request, UserAccount user) {
+		return request.currency() == null ? user.getDefaultCurrency() : request.currency();
 	}
 
 	public ExpensePageResponse history(ExpenseHistoryRequest request, String email) {
