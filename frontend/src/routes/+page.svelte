@@ -329,13 +329,19 @@
 		if (profileMenuOpen && profileMenuWrap && !profileMenuWrap.contains(event.target as Node)) closeProfileMenu();
 	}
 
+	function warnBeforeUnload(event: BeforeUnloadEvent) {
+		if (!accountDirty) return;
+		event.preventDefault();
+		event.returnValue = '';
+	}
+
 	function monthEnd(month: string) {
 		const [year, monthNumber] = month.split('-').map(Number);
 		return `${month}-${new Date(Date.UTC(year, monthNumber, 0)).getUTCDate().toString().padStart(2, '0')}`;
 	}
 </script>
 
-<svelte:window onpointerdown={handleWindowPointerDown} />
+<svelte:window onpointerdown={handleWindowPointerDown} onbeforeunload={warnBeforeUnload} />
 <svelte:head><title>ExpTrack</title><meta name="description" content="A private place to record everyday spending." /></svelte:head>
 
 <main class="app">
@@ -374,7 +380,7 @@
 		{:else if view === 'add'}
 			<section class="ledger" aria-labelledby="add-expense-title">
 				<div class="heading"><div><p class="eyebrow">{editing ? 'Correction' : 'Your ledger'}</p><h1 id="add-expense-title">{editing ? 'Edit expense' : 'Add an expense'}</h1></div><p>{editing?.currency ?? session.defaultCurrency}</p></div>
-				{#if editing}{#key editing.id}<ExpenseForm {categories} initial={{ title: editing.title, amount: amountForInput(editing), categoryId: editing.categoryId, date: editing.date, note: editing.note ?? '' }} {submitting} {error} submitLabel="Save changes" onCancel={() => { editing = null; error = ''; formDirty = false; view = 'history'; }} onDirty={() => formDirty = true} onSubmit={updateExpense} />{/key}{:else}<ExpenseForm {categories} initial={{ title: '', amount: '', categoryId: categories[0]?.id ?? null, date: today(), note: '' }} {submitting} {error} onDirty={() => formDirty = true} onSubmit={addExpense} />{/if}
+				{#if editing}{#key editing.id}<ExpenseForm {categories} initial={{ title: editing.title, amount: amountForInput(editing), categoryId: editing.categoryId, date: editing.date, note: editing.note ?? '', currency: editing.currency }} {submitting} {error} submitLabel="Save changes" onCancel={() => { editing = null; error = ''; formDirty = false; view = 'history'; }} onDirty={() => formDirty = true} onSubmit={updateExpense} />{/key}{:else}<ExpenseForm {categories} initial={{ title: '', amount: '', categoryId: categories[0]?.id ?? null, date: today(), note: '', currency: session.defaultCurrency }} {submitting} {error} onDirty={() => formDirty = true} onSubmit={addExpense} />{/if}
 			</section>
 		{:else if view === 'account'}
 			<AccountSettings email={session.email} createdAt={session.createdAt} defaultCurrency={session.defaultCurrency} {savingCurrency} {savingPassword} {currencyError} {passwordError} onDirty={(dirty) => accountDirty = dirty} onSaveCurrency={saveDefaultCurrency} onChangePassword={changePassword} />
