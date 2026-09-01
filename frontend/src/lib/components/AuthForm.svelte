@@ -7,14 +7,28 @@
 	let email = $state('');
 	let password = $state('');
 	let defaultCurrency = $state('USD');
+	let passwordError = $state('');
 
 	function submit(event: SubmitEvent) {
 		event.preventDefault();
+		if (mode === 'register') {
+			const passwordLength = Array.from(password).length;
+			if (passwordLength < 15 || passwordLength > 64) {
+				passwordError = 'Password must be between 15 and 64 characters';
+				return;
+			}
+		}
+		passwordError = '';
 		onSubmit({ mode, email, password, defaultCurrency });
+	}
+
+	function clearPasswordError() {
+		passwordError = '';
 	}
 
 	function toggleMode() {
 		mode = mode === 'sign-in' ? 'register' : 'sign-in';
+		clearPasswordError();
 		onModeChange();
 	}
 </script>
@@ -25,10 +39,25 @@
 	<p class="intro">Record an expense in a few seconds. Your data stays private to your account.</p>
 	{#if notice}<p class="notice" role="status">{notice}</p>{/if}
 	<form class="form-stack" onsubmit={submit}>
-		<label class="field">Email <input bind:value={email} type="email" autocomplete="email" required /></label>
-		<label class="field">Password <input bind:value={password} type="password" autocomplete={mode === 'sign-in' ? 'current-password' : 'new-password'} minlength={mode === 'register' ? 15 : undefined} required /></label>
+		<div class="field">
+			<label for="auth-email">Email</label>
+			<input id="auth-email" bind:value={email} type="email" autocomplete="email" required />
+		</div>
+		<div class="field">
+			<label for="auth-password">Password</label>
+			<input
+				id="auth-password"
+				bind:value={password}
+				oninput={clearPasswordError}
+				type="password"
+				autocomplete={mode === 'sign-in' ? 'current-password' : 'new-password'}
+				aria-describedby={passwordError ? 'password-error' : undefined}
+				aria-invalid={passwordError ? 'true' : undefined}
+				required
+			/>
+			{#if passwordError}<p id="password-error" class="error" role="alert">{passwordError}</p>{/if}
+		</div>
 		{#if mode === 'register'}<label class="field">Default currency <input bind:value={defaultCurrency} maxlength="3" autocapitalize="characters" required /></label>{/if}
-		{#if error}<p class="error" role="alert">{error}</p>{/if}
 		<button class="primary" disabled={submitting}>{submitting ? 'Working…' : mode === 'sign-in' ? 'Sign in' : 'Create account'}</button>
 	</form>
 	<button class="switch" onclick={toggleMode}>
