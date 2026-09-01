@@ -58,6 +58,7 @@
 			{#if passwordError}<p id="password-error" class="error" role="alert">{passwordError}</p>{/if}
 		</div>
 		{#if mode === 'register'}<label class="field">Default currency <input bind:value={defaultCurrency} maxlength="3" autocapitalize="characters" required /></label>{/if}
+		{#if error}<p class="error" role="alert">{error}</p>{/if}
 		<button class="primary" disabled={submitting}>{submitting ? 'Working…' : mode === 'sign-in' ? 'Sign in' : 'Create account'}</button>
 	</form>
 	<button class="switch" onclick={toggleMode}>

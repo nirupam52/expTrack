@@ -44,3 +44,14 @@ test('blocks registration passwords longer than 64 Unicode code points', async (
 	await openRegistration(page);
 	await expectRegistrationBlocked(page, 'a'.repeat(65));
 });
+
+test('shows the server error when sign-in fails', async ({ page }) => {
+	await mockUnauthenticatedAuth(page);
+	await page.route('**/api/auth/login', (route) => route.fulfill({ status: 401, body: '' }));
+	await page.goto('/');
+	await page.getByLabel('Email').fill('alice@example.com');
+	await page.getByLabel('Password').fill('wrong-password');
+	await page.getByRole('button', { name: 'Sign in' }).click();
+
+	await expect(page.getByRole('alert')).toHaveText('Email or password is incorrect.');
+});
