@@ -2,6 +2,7 @@ package com.exptrack.config;
 
 import java.io.IOException;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 
 import jakarta.servlet.FilterChain;
@@ -45,7 +46,7 @@ class AuthRateLimitFilter extends OncePerRequestFilter {
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
 			throws ServletException, IOException {
-		if (!accepts(clientKey(request))) {
+		if (!accepts(clientKey(request)) || !acceptsAccount(request)) {
 			response.setStatus(429);
 			return;
 		}
@@ -57,6 +58,24 @@ class AuthRateLimitFilter extends OncePerRequestFilter {
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		return authentication == null || !authentication.isAuthenticated()
 				|| authentication instanceof AnonymousAuthenticationToken ? key : key + "|" + authentication.getName();
+	}
+
+	private boolean acceptsAccount(HttpServletRequest request) {
+		String account = accountKey(request);
+		return account == null || accepts("account|" + request.getServletPath() + "|" + account);
+	}
+
+	private String accountKey(HttpServletRequest request) {
+		String account = "/api/auth/login".equals(request.getServletPath())
+				? request.getParameter("username") : authenticatedAccount();
+		if (account == null || account.isBlank()) return null;
+		return account.strip().toLowerCase(Locale.ROOT);
+	}
+
+	private String authenticatedAccount() {
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		return authentication == null || !authentication.isAuthenticated()
+				|| authentication instanceof AnonymousAuthenticationToken ? null : authentication.getName();
 	}
 
 	private synchronized boolean accepts(String client) {
