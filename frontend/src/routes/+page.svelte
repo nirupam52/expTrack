@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { resolve } from '$app/paths';
 	import { del, get, HttpError, post, put } from '$lib/api/client';
 	import {
@@ -7,6 +7,7 @@
 		expenseSchema,
 		sessionSchema,
 		type AuthSubmission,
+		type AccountPasswords,
 		type Category,
 		type Expense,
 		type ExpenseDraft,
@@ -14,9 +15,10 @@
 		type Session
 	} from '$lib/api/types';
 	import AuthForm from '$lib/components/AuthForm.svelte';
-	import ExpenseForm from '$lib/components/ExpenseForm.svelte';
-	import ExpenseHistory from '$lib/components/ExpenseHistory.svelte';
+	import AccountSettings from '$lib/components/AccountSettings.svelte';
 	import Dashboard from '$lib/components/Dashboard.svelte';
+	import ExpenseHistory from '$lib/components/ExpenseHistory.svelte';
+	import ExpenseForm from '$lib/components/ExpenseForm.svelte';
 	import { today } from '$lib/utils/date';
 	import { amountForInput } from '$lib/utils/format-currency';
 
@@ -25,7 +27,7 @@
 		kind: 'success' | 'error';
 		message: string;
 	};
-	type View = 'dashboard' | 'add' | 'history';
+	type View = 'dashboard' | 'add' | 'history' | 'account';
 	const emptyHistoryFilters: ExpenseHistoryFilters = { query: '', categoryId: null, currency: '', from: '', to: '' };
 
 	let session = $state<Session | null>(null);
@@ -39,6 +41,12 @@
 	let expenseVersion = $state(0);
 	let view = $state<View>('dashboard');
 	let formDirty = $state(false);
+	let accountDirty = $state(false);
+	let savingCurrency = $state(false);
+	let savingPassword = $state(false);
+	let currencyError = $state('');
+	let passwordError = $state('');
+	let authNotice = $state('');
 	let historyFilters = $state<ExpenseHistoryFilters>({ ...emptyHistoryFilters });
 
 	// Bumped only by explicit viewHistory calls (nav reset, dashboard drill-down); user-applied
@@ -46,6 +54,9 @@
 	let historyRemount = $state(0);
 	let toast = $state<Toast | null>(null);
 	let toastSequence = 0;
+	let profileMenuOpen = $state(false);
+	let profileMenuWrap = $state<HTMLElement | null>(null);
+	let profileTrigger = $state<HTMLButtonElement | null>(null);
 
 	onMount(() => {
 		void loadSession();
@@ -80,6 +91,7 @@
 
 	async function authenticate({ mode, email, password, defaultCurrency }: AuthSubmission) {
 		error = '';
+		authNotice = '';
 		submitting = true;
 		try {
 			if (mode === 'register') {
@@ -165,6 +177,9 @@
 			session = null;
 			editing = null;
 			view = 'dashboard';
+			formDirty = false;
+			accountDirty = false;
+			authNotice = '';
 		} catch {
 			signOutError = 'Could not sign out. Please try again.';
 		}
@@ -176,14 +191,17 @@
 		historyRemount += 1;
 		editing = null;
 		formDirty = false;
+		accountDirty = false;
 		view = 'history';
 	}
 
 	function startAddExpense() {
 		if (view === 'add') return;
+		if (!canLeaveForm()) return;
 		editing = null;
 		error = '';
 		formDirty = false;
+		accountDirty = false;
 		view = 'add';
 	}
 
@@ -191,11 +209,124 @@
 		if (!canLeaveForm()) return;
 		editing = null;
 		formDirty = false;
+		accountDirty = false;
 		view = 'dashboard';
 	}
 
 	function canLeaveForm() {
-		return view !== 'add' || !formDirty || window.confirm('Discard the changes to this expense?');
+		if (view === 'add') return !formDirty || window.confirm('Discard the changes to this expense?');
+		if (view === 'account') return !accountDirty || window.confirm('Discard the changes to your account settings?');
+		return true;
+	}
+
+	function openAccountSettings() {
+		if (view === 'account') return;
+		if (!canLeaveForm()) return;
+		editing = null;
+		error = '';
+		formDirty = false;
+		accountDirty = false;
+		currencyError = '';
+		passwordError = '';
+		view = 'account';
+	}
+
+	async function saveDefaultCurrency(currency: string) {
+		currencyError = '';
+		savingCurrency = true;
+		try {
+			const updated = await put('/api/account/default-currency', { defaultCurrency: currency }, sessionSchema);
+			if (!updated) throw new Error('Default currency response is missing.');
+			session = updated;
+			return true;
+		} catch (cause) {
+			currencyError = cause instanceof HttpError && cause.status === 400 && cause.detail
+				? cause.detail
+				: 'Could not save the default currency. Please try again.';
+			return false;
+		} finally {
+			savingCurrency = false;
+		}
+	}
+
+	async function changePassword(passwords: AccountPasswords) {
+		passwordError = '';
+		savingPassword = true;
+		try {
+			await post('/api/account/password', passwords);
+			session = null;
+			view = 'dashboard';
+			editing = null;
+			formDirty = false;
+			accountDirty = false;
+			authNotice = 'Password changed. Sign in again.';
+			return true;
+		} catch (cause) {
+			passwordError = cause instanceof HttpError && cause.status === 400 && cause.detail
+				? cause.detail
+				: 'Could not change the password. Please try again.';
+			return false;
+		} finally {
+			savingPassword = false;
+		}
+	}
+
+	async function openProfileMenu() {
+		if (profileMenuOpen) return;
+		profileMenuOpen = true;
+		await tick();
+		profileMenuWrap?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+	}
+
+	async function toggleProfileMenu() {
+		if (profileMenuOpen) {
+			closeProfileMenu(true);
+			return;
+		}
+		await openProfileMenu();
+	}
+
+	function closeProfileMenu(refocus = false) {
+		profileMenuOpen = false;
+		if (refocus) profileTrigger?.focus();
+	}
+
+	function profileTriggerKeydown(event: KeyboardEvent) {
+		if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+			event.preventDefault();
+			void openProfileMenu();
+		}
+	}
+
+	function profileMenuKeydown(event: KeyboardEvent) {
+		const items = Array.from(profileMenuWrap?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []);
+		const index = items.indexOf(document.activeElement as HTMLElement);
+		if (event.key === 'ArrowDown') {
+			event.preventDefault();
+			items[(index + 1) % items.length]?.focus();
+		} else if (event.key === 'ArrowUp') {
+			event.preventDefault();
+			items[(index - 1 + items.length) % items.length]?.focus();
+		} else if (event.key === 'Escape') {
+			event.preventDefault();
+			closeProfileMenu(true);
+		} else if (event.key === 'Tab') {
+			closeProfileMenu();
+		}
+	}
+
+	function chooseAccountSettings() {
+		closeProfileMenu();
+		openAccountSettings();
+	}
+
+	function chooseSignOut() {
+		closeProfileMenu();
+		void signOut();
+	}
+
+	function handleWindowPointerDown(event: PointerEvent) {
+		if (profileMenuOpen && profileMenuWrap && !profileMenuWrap.contains(event.target as Node)) closeProfileMenu();
 	}
 
 	function monthEnd(month: string) {
@@ -204,6 +335,7 @@
 	}
 </script>
 
+<svelte:window onpointerdown={handleWindowPointerDown} />
 <svelte:head><title>ExpTrack</title><meta name="description" content="A private place to record everyday spending." /></svelte:head>
 
 <main class="app">
@@ -212,7 +344,15 @@
 		{#if session}
 			<nav class="bottom-nav" aria-label="Main navigation"><button class={{ active: view === 'dashboard' }} aria-current={view === 'dashboard' ? 'page' : undefined} onclick={viewDashboard}>Dashboard</button><button class={{ active: view === 'add' }} aria-current={view === 'add' ? 'page' : undefined} onclick={startAddExpense}>Add expense</button><button class={{ active: view === 'history' }} aria-current={view === 'history' ? 'page' : undefined} onclick={() => viewHistory()}>History</button></nav>
 			<div class="account-actions">
-				<button class="quiet" onclick={signOut}>Sign out</button>
+				<div class="profile-menu-wrap" bind:this={profileMenuWrap} onfocusout={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) closeProfileMenu(); }}>
+					<button class="quiet" bind:this={profileTrigger} aria-haspopup="menu" aria-expanded={profileMenuOpen} onclick={() => void toggleProfileMenu()} onkeydown={profileTriggerKeydown}>Profile</button>
+					{#if profileMenuOpen}
+						<div class="profile-menu" role="menu" tabindex="-1" aria-label="Profile" onkeydown={profileMenuKeydown}>
+							<button role="menuitem" onclick={chooseAccountSettings}>Account settings</button>
+							<button role="menuitem" onclick={chooseSignOut}>Sign out</button>
+						</div>
+					{/if}
+				</div>
 				{#if signOutError}<p class="error" role="alert">{signOutError}</p>{/if}
 			</div>
 		{/if}
@@ -227,7 +367,7 @@
 			<button class="primary" onclick={loadSession}>Retry</button>
 		</section>
 	{:else if !session}
-		<AuthForm {submitting} {error} onSubmit={authenticate} onModeChange={() => error = ''} />
+		<AuthForm {submitting} {error} notice={authNotice} onSubmit={authenticate} onModeChange={() => error = ''} />
 	{:else}
 		{#if view === 'dashboard'}
 			<Dashboard {categories} defaultCurrency={session.defaultCurrency} onAddExpense={startAddExpense} onViewHistory={() => viewHistory()} onViewCategory={(categoryId, month, currency) => viewHistory({ categoryId, currency, from: `${month}-01`, to: monthEnd(month) })} />
@@ -236,6 +376,8 @@
 				<div class="heading"><div><p class="eyebrow">{editing ? 'Correction' : 'Your ledger'}</p><h1 id="add-expense-title">{editing ? 'Edit expense' : 'Add an expense'}</h1></div><p>{editing?.currency ?? session.defaultCurrency}</p></div>
 				{#if editing}{#key editing.id}<ExpenseForm {categories} initial={{ title: editing.title, amount: amountForInput(editing), categoryId: editing.categoryId, date: editing.date, note: editing.note ?? '' }} {submitting} {error} submitLabel="Save changes" onCancel={() => { editing = null; error = ''; formDirty = false; view = 'history'; }} onDirty={() => formDirty = true} onSubmit={updateExpense} />{/key}{:else}<ExpenseForm {categories} initial={{ title: '', amount: '', categoryId: categories[0]?.id ?? null, date: today(), note: '' }} {submitting} {error} onDirty={() => formDirty = true} onSubmit={addExpense} />{/if}
 			</section>
+		{:else if view === 'account'}
+			<AccountSettings email={session.email} createdAt={session.createdAt} defaultCurrency={session.defaultCurrency} {savingCurrency} {savingPassword} {currencyError} {passwordError} onDirty={(dirty) => accountDirty = dirty} onSaveCurrency={saveDefaultCurrency} onChangePassword={changePassword} />
 		{:else}
 			{#key historyRemount}<ExpenseHistory {categories} initialFilters={historyFilters} reloadVersion={expenseVersion} onEdit={(expense) => { editing = expense; error = ''; view = 'add'; }} onDelete={deleteExpense} onFiltersChange={(filters) => historyFilters = filters} />{/key}
 		{/if}
