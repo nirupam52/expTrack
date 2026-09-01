@@ -112,6 +112,32 @@ test('changes the password and returns to the sign-in form', async ({ page }) =>
 	await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
 	expect(passwordBodies).toEqual([{ currentPassword: 'old-password-1234', newPassword, newPasswordConfirmation: newPassword }]);
 });
+test('associates a wrong current-password response with the current-password field', async ({ page }) => {
+	await mockLedger(page);
+	await page.route('**/api/account/password', (route) => route.fulfill({
+		status: 400,
+		json: { detail: 'Current password is incorrect' }
+	}));
+
+	await page.goto('/');
+	await page.getByRole('button', { name: 'Profile' }).click();
+	await page.getByRole('menuitem', { name: 'Account settings' }).click();
+
+	const currentPassword = page.getByLabel('Current password');
+	const newPassword = page.getByLabel('New password', { exact: true });
+	await currentPassword.fill('wrong-password-1234');
+	await newPassword.fill('fresh-password-5678901');
+	await page.getByLabel('Confirm new password').fill('fresh-password-5678901');
+	await page.getByRole('button', { name: 'Change password' }).click();
+
+	const error = page.getByRole('alert').filter({ hasText: 'Current password is incorrect' });
+	await expect(error).toBeVisible();
+	const errorId = await error.getAttribute('id');
+	expect(errorId).toBeTruthy();
+	await expect(currentPassword).toHaveAttribute('aria-describedby', errorId!);
+	await expect(currentPassword).toHaveAttribute('aria-invalid', 'true');
+	await expect(newPassword).not.toHaveAttribute('aria-describedby', errorId!);
+});
 
 test('warns before discarding account changes when navigating', async ({ page }) => {
 	await mockLedger(page);
