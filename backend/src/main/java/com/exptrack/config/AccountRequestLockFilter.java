@@ -17,6 +17,7 @@ final class AccountRequestLockFilter extends OncePerRequestFilter {
 
 	static final String LOGIN_PATH = "/api/auth/login";
 	static final String PASSWORD_PATH = "/api/account/password";
+	static final String DEFAULT_CURRENCY_PATH = "/api/account/default-currency";
 
 	private final AccountRequestLockCoordinator coordinator;
 
@@ -26,7 +27,7 @@ final class AccountRequestLockFilter extends OncePerRequestFilter {
 
 	@Override
 	protected boolean shouldNotFilter(HttpServletRequest request) {
-		return !"POST".equals(request.getMethod()) || !isAccountRequest(request);
+		return !isAccountRequest(request);
 	}
 
 	@Override
@@ -36,8 +37,10 @@ final class AccountRequestLockFilter extends OncePerRequestFilter {
 	}
 
 	private boolean isAccountRequest(HttpServletRequest request) {
+		String method = request.getMethod();
 		String path = request.getServletPath();
-		return LOGIN_PATH.equals(path) || PASSWORD_PATH.equals(path);
+		return ("POST".equals(method) && (LOGIN_PATH.equals(path) || PASSWORD_PATH.equals(path)))
+				|| ("PUT".equals(method) && DEFAULT_CURRENCY_PATH.equals(path));
 	}
 
 	private String accountKey(HttpServletRequest request) {

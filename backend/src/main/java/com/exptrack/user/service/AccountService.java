@@ -16,6 +16,8 @@ import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.ErrorResponseException;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -40,7 +42,7 @@ public class AccountService {
 	}
 
 	@Transactional
-	public void changePassword(String email, ChangePasswordRequest request) {
+	public void changePassword(String email, ChangePasswordRequest request, HttpSession currentSession) {
 		UserAccount user = find(email);
 		if (!passwords.matches(request.currentPassword(), user.getPasswordHash())) {
 			throw badRequest("Current password is incorrect");
@@ -53,9 +55,19 @@ public class AccountService {
 					+ PasswordPolicy.MAX_CODE_POINTS + " characters");
 		}
 		user.setPasswordHash(passwords.encode(request.newPassword()));
+		registerSessionExpiration(email, currentSession);
 	}
 
-	public void expireSessions(String email, HttpSession currentSession) {
+	private void registerSessionExpiration(String email, HttpSession currentSession) {
+		TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+			@Override
+			public void afterCommit() {
+				expireSessions(email, currentSession);
+			}
+		});
+	}
+
+	private void expireSessions(String email, HttpSession currentSession) {
 		sessions.getAllSessions(email, false).forEach(SessionInformation::expireNow);
 		currentSession.invalidate();
 	}

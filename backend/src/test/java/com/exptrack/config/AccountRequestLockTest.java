@@ -113,6 +113,20 @@ class AccountRequestLockTest {
 		assertThat(chainInvocations.get()).isEqualTo(1);
 	}
 
+	@Test
+	void putDefaultCurrencyUsesPrincipalAsAccountKey() throws Exception {
+		AccountRequestLockCoordinator coordinator = coordinatorThatRunsActions();
+		AccountRequestLockFilter filter = new AccountRequestLockFilter(coordinator);
+		MockHttpServletRequest request = request("PUT", AccountRequestLockFilter.DEFAULT_CURRENCY_PATH);
+		request.setUserPrincipal(() -> "Alice@example.com");
+		AtomicInteger chainInvocations = new AtomicInteger();
+
+		filter.doFilter(request, new MockHttpServletResponse(), chain(chainInvocations));
+
+		verify(coordinator).execute(eq("Alice@example.com"), any());
+		assertThat(chainInvocations.get()).isEqualTo(1);
+	}
+
 	@ParameterizedTest
 	@CsvSource({"GET, /api/auth/login", "POST, /api/account/other"})
 	void nonTargetRequestsBypassCoordinator(String method, String path) throws Exception {
@@ -127,14 +141,14 @@ class AccountRequestLockTest {
 	}
 
 	@ParameterizedTest
-	@ValueSource(strings = {AccountRequestLockFilter.LOGIN_PATH, AccountRequestLockFilter.PASSWORD_PATH})
-	void missingAccountKeysPassThrough(String path) throws Exception {
+	@CsvSource({"POST, /api/auth/login", "POST, /api/account/password", "PUT, /api/account/default-currency"})
+	void missingAccountKeysPassThrough(String method, String path) throws Exception {
 		SecurityContextHolder.clearContext();
 		AccountRequestLockCoordinator coordinator = coordinatorThatRunsActions();
 		AccountRequestLockFilter filter = new AccountRequestLockFilter(coordinator);
 		AtomicInteger chainInvocations = new AtomicInteger();
 
-		filter.doFilter(request("POST", path), new MockHttpServletResponse(), chain(chainInvocations));
+		filter.doFilter(request(method, path), new MockHttpServletResponse(), chain(chainInvocations));
 
 		verify(coordinator).execute(isNull(), any());
 		assertThat(chainInvocations.get()).isEqualTo(1);

@@ -35,7 +35,6 @@ public class AccountController {
 	@PostMapping("/password")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void password(Principal principal, HttpSession session, @Valid @RequestBody ChangePasswordRequest request) {
-		accounts.changePassword(principal.getName(), request);
-		accounts.expireSessions(principal.getName(), session);
+		accounts.changePassword(principal.getName(), request, session);
 	}
 }
