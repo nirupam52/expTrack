@@ -23,6 +23,7 @@ You are building a production-quality personal expense tracker.
 - Avoid duplication.
 - Add tests for business logic.
 - Do not introduce dependencies without justification.
+- Make use of stacked PRs to break down large changes. Isolate work across each PR with clear boundaries and logical separations. Do not create PRs with massive diffs.
 
 ## UX Rules
 - Minimize clicks.
