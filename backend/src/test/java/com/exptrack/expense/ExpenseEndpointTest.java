@@ -123,6 +123,35 @@ class ExpenseEndpointTest {
 	}
 
 	@Test
+	void expenseCreationUsesCurrentDefaultAndPreservesRecordedCurrency() throws Exception {
+		registerAndSignIn("expense-currency@example.com", "USD");
+		HttpResponse<String> first = create(Map.of("title", "First coffee", "amount", "4.50", "categoryId", 1, "date", "2026-08-04"));
+		jdbc.update("UPDATE users SET default_currency = ? WHERE email = ?", "EUR", "expense-currency@example.com");
+		HttpResponse<String> second = create(Map.of("title", "Second coffee", "amount", "4.50", "categoryId", 1, "date", "2026-08-04"));
+
+		assertThat(first.statusCode()).isEqualTo(HttpStatus.CREATED.value());
+		assertThat(json.readTree(first.body()).get("currency").asText()).isEqualTo("USD");
+		assertThat(second.statusCode()).isEqualTo(HttpStatus.CREATED.value());
+		assertThat(json.readTree(second.body()).get("currency").asText()).isEqualTo("EUR");
+		assertThat(jdbc.queryForObject("SELECT currency FROM expenses WHERE title = ?", String.class, "First coffee")).isEqualTo("USD");
+		assertThat(jdbc.queryForObject("SELECT currency FROM expenses WHERE title = ?", String.class, "Second coffee")).isEqualTo("EUR");
+	}
+
+	@Test
+	void expenseUpdatePreservesTheRecordedCurrencyAfterDefaultChanges() throws Exception {
+		registerAndSignIn("expense-recorded-currency@example.com", "USD");
+		HttpResponse<String> created = create(Map.of("title", "Recorded coffee", "amount", "4.50", "categoryId", 1, "date", "2026-08-04"));
+		int expenseId = json.readTree(created.body()).get("id").asInt();
+		jdbc.update("UPDATE users SET default_currency = ? WHERE email = ?", "EUR", "expense-recorded-currency@example.com");
+		HttpResponse<String> updated = put("/api/expenses/" + expenseId,
+				Map.of("title", "Updated coffee", "amount", "5.50", "categoryId", 1, "date", "2026-08-04"));
+
+		assertThat(updated.statusCode()).isEqualTo(HttpStatus.OK.value());
+		assertThat(json.readTree(updated.body()).get("currency").asText()).isEqualTo("USD");
+	}
+
+
+	@Test
 	void expenseRejectsMissingOrBlankRequiredDetailsAndNonPositiveAmounts() throws Exception {
 		assertThat(create(Map.of("title", "Coffee", "amount", "12.34", "categoryId", 1, "date", "2026-08-04")).statusCode()).isEqualTo(HttpStatus.UNAUTHORIZED.value());
 		registerAndSignIn("expense-validation@example.com", "USD");
@@ -199,6 +228,14 @@ class ExpenseEndpointTest {
 
 	private HttpResponse<String> post(String path, Map<String, ?> body) throws Exception {
 		return post(browser, path, body);
+	}
+
+	private HttpResponse<String> put(String path, Map<String, ?> body) throws Exception {
+		return browser.send(HttpRequest.newBuilder(URI.create(url(path)))
+				.header("Content-Type", "application/json")
+				.header("X-CSRF-TOKEN", csrfToken())
+				.PUT(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)))
+				.build(), HttpResponse.BodyHandlers.ofString());
 	}
 
 	private HttpResponse<String> post(HttpClient client, String path, Map<String, ?> body) throws Exception {

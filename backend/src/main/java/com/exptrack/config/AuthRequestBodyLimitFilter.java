@@ -22,13 +22,16 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
 final class AuthRequestBodyLimitFilter extends OncePerRequestFilter {
-
 	static final int MAX_BODY_BYTES = 16 * 1024;
+
+	static final String LOGIN_PATH = "/api/auth/login";
+	static final String PASSWORD_PATH = "/api/account/password";
+	static final String CURRENCY_PATH = "/api/account/default-currency";
 	private static final int MAX_FORM_PASSWORD_CODE_POINTS = 128;
 
 	@Override
 	protected boolean shouldNotFilter(HttpServletRequest request) {
-		return !"POST".equals(request.getMethod()) || !isProtectedPath(request.getServletPath());
+		return !isProtectedRequest(request);
 	}
 
 	@Override
@@ -41,13 +44,15 @@ final class AuthRequestBodyLimitFilter extends OncePerRequestFilter {
 		chain.doFilter(new LimitedRequest(request), response);
 	}
 
-	private boolean isProtectedPath(String path) {
-		return AccountRequestLockFilter.LOGIN_PATH.equals(path) || "/api/auth/register".equals(path)
-				|| AccountRequestLockFilter.PASSWORD_PATH.equals(path);
+	private boolean isProtectedRequest(HttpServletRequest request) {
+		String method = request.getMethod();
+		String path = request.getServletPath();
+		return ("POST".equals(method) && (LOGIN_PATH.equals(path) || "/api/auth/register".equals(path)
+				|| PASSWORD_PATH.equals(path))) || ("PUT".equals(method) && CURRENCY_PATH.equals(path));
 	}
 
 	private boolean oversizedFormPassword(HttpServletRequest request) throws IOException {
-		if (!AccountRequestLockFilter.LOGIN_PATH.equals(request.getServletPath())) return false;
+		if (!LOGIN_PATH.equals(request.getServletPath())) return false;
 		request.setCharacterEncoding(StandardCharsets.UTF_8.name());
 		String password = request.getParameter("password");
 		return password != null && password.codePointCount(0, password.length()) > MAX_FORM_PASSWORD_CODE_POINTS;

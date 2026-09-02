@@ -20,7 +20,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 class AuthRateLimitFilter extends OncePerRequestFilter {
 
 	private static final int MAX_TRACKED_CLIENTS = 10_000;
-	// ponytail: process-local global lock and 10,000-client ceiling; use a shared limiter for multiple backend instances.
+	// Process-local limiter with a bounded client table; use shared infrastructure for multiple backend instances.
 	private final Map<String, Attempts> attempts = new LinkedHashMap<>(16, 0.75f, true) {
 		@Override
 		protected boolean removeEldestEntry(Map.Entry<String, Attempts> eldest) {

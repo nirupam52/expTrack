@@ -17,7 +17,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
@@ -33,14 +33,13 @@ class AccountEndpointTest {
 	private final HttpClient browser;
 	private final ObjectMapper json = new ObjectMapper();
 	private final JdbcTemplate jdbc;
-	private final PasswordEncoder passwords;
+	private final BCryptPasswordEncoder legacyPasswords = new BCryptPasswordEncoder();
 
 	@Autowired
-	AccountEndpointTest(@LocalServerPort int port, JdbcTemplate jdbc, PasswordEncoder passwords) {
+	AccountEndpointTest(@LocalServerPort int port, JdbcTemplate jdbc) {
 		this.port = port;
 		this.browser = newBrowser();
 		this.jdbc = jdbc;
-		this.passwords = passwords;
 	}
 
 	@Test
@@ -51,9 +50,10 @@ class AccountEndpointTest {
 		assertThat(fresh.get("email").asText()).isEqualTo("new@example.com");
 		assertThat(fresh.get("defaultCurrency").asText()).isEqualTo("USD");
 		assertThat(Instant.parse(fresh.get("createdAt").asText())).isCloseTo(Instant.now(), within(5, ChronoUnit.MINUTES));
+		assertThat(fresh.size()).isEqualTo(3);
 
 		jdbc.update("INSERT INTO users (email, password_hash, default_currency) VALUES (?, ?, ?)",
-				"legacy@example.com", passwords.encode(PASSWORD), "GBP");
+				"legacy@example.com", legacyPasswords.encode(PASSWORD), "GBP");
 		HttpClient legacy = newBrowser();
 		signIn(legacy, "legacy@example.com", PASSWORD);
 		JsonNode legacySession = session(legacy);
@@ -79,6 +79,7 @@ class AccountEndpointTest {
 		assertThat(body.get("email").asText()).isEqualTo("cur@example.com");
 		assertThat(body.get("defaultCurrency").asText()).isEqualTo("EUR");
 		assertThat(body.get("createdAt").isNull()).isFalse();
+		assertThat(body.size()).isEqualTo(3);
 	}
 
 	private void assertInvalidCurrency() throws Exception {
@@ -181,11 +182,13 @@ class AccountEndpointTest {
 	}
 
 	@Test
-	void passwordChangeEndsEveryActiveSessionAndTheOldPasswordStopsWorking() throws Exception {
+	void passwordChangeEndsEveryActiveSessionForTheUserButNotOtherUsers() throws Exception {
 		registerAndSignIn(browser, "keeper@example.com");
 		HttpClient second = newBrowser();
 		signIn(second, "keeper@example.com", PASSWORD);
 		assertThat(session(second).get("email").asText()).isEqualTo("keeper@example.com");
+		HttpClient otherUser = newBrowser();
+		registerAndSignIn(otherUser, "other-user@example.com");
 
 		String newPassword = "a-brand-new-password";
 		assertThat(password(PASSWORD, newPassword, newPassword).statusCode()).isEqualTo(HttpStatus.NO_CONTENT.value());
@@ -194,6 +197,7 @@ class AccountEndpointTest {
 				HttpResponse.BodyHandlers.discarding()).statusCode()).isEqualTo(HttpStatus.UNAUTHORIZED.value());
 		assertThat(second.send(HttpRequest.newBuilder(URI.create(url("/api/auth/session"))).GET().build(),
 				HttpResponse.BodyHandlers.discarding()).statusCode()).isEqualTo(HttpStatus.UNAUTHORIZED.value());
+		assertThat(session(otherUser).get("email").asText()).isEqualTo("other-user@example.com");
 
 		assertThat(signIn(newBrowser(), "keeper@example.com", newPassword).statusCode()).isEqualTo(HttpStatus.NO_CONTENT.value());
 		assertThat(signIn(newBrowser(), "keeper@example.com", PASSWORD).statusCode()).isEqualTo(HttpStatus.UNAUTHORIZED.value());

@@ -39,8 +39,7 @@ public final class PreHashingBCryptEncoder implements PasswordEncoder {
 		if (encodedPassword.startsWith(PRE_HASH_MARKER)) {
 			return delegate.matches(preHash(rawPassword), encodedPassword.substring(PRE_HASH_MARKER.length()));
 		}
-		return utf8Bytes(rawPassword.toString()).length <= BCRYPT_MAX_BYTES
-				&& delegate.matches(rawPassword, encodedPassword);
+		return delegate.matches(rawPassword, encodedPassword);
 	}
 
 	private String preHash(CharSequence rawPassword) {

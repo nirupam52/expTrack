@@ -15,7 +15,6 @@ import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
-import org.springframework.security.web.session.ConcurrentSessionFilter;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.security.web.SecurityFilterChain;
@@ -25,15 +24,14 @@ class SecurityConfiguration {
 
 	@Bean
 	SecurityFilterChain securityFilterChain(HttpSecurity http, AuthRateLimitFilter authRateLimitFilter,
-			AccountRequestLockCoordinator lockCoordinator, SessionRegistry sessionRegistry) throws Exception {
+			SessionRegistry sessionRegistry) throws Exception {
 		RequestMatcher apiRequests = request -> request.getRequestURI().startsWith("/api/");
-		http.addFilterBefore(authRateLimitFilter, CsrfFilter.class)
-				.addFilterAfter(new AccountRequestLockFilter(lockCoordinator), CsrfFilter.class)
-				.addFilterAt(concurrentSessionFilter(sessionRegistry), ConcurrentSessionFilter.class);
+		http.addFilterBefore(authRateLimitFilter, CsrfFilter.class);
 		configureAuthorization(http);
 		configureCsrf(http);
 		configureExceptionHandling(http, apiRequests);
-		configureLogin(http, sessionRegistry);
+		configureSessionManagement(http, sessionRegistry);
+		configureLogin(http);
 		configureLogout(http);
 		return http.build();
 	}
@@ -55,14 +53,16 @@ class SecurityConfiguration {
 				new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED), apiRequests));
 	}
 
-	private void configureLogin(HttpSecurity http, SessionRegistry sessionRegistry) throws Exception {
-		http.formLogin(form -> form.loginProcessingUrl(AccountRequestLockFilter.LOGIN_PATH)
-				.successHandler((request, response, authentication) -> {
-					String sessionId = request.getSession().getId();
-					sessionRegistry.removeSessionInformation(sessionId);
-					sessionRegistry.registerNewSession(sessionId, authentication.getName());
-					response.setStatus(HttpStatus.NO_CONTENT.value());
-				})
+	private void configureSessionManagement(HttpSecurity http, SessionRegistry sessionRegistry) throws Exception {
+		http.sessionManagement(session -> session.maximumSessions(Integer.MAX_VALUE)
+				.sessionRegistry(sessionRegistry)
+				.expiredSessionStrategy(event -> event.getResponse().sendError(HttpStatus.UNAUTHORIZED.value())));
+	}
+
+	private void configureLogin(HttpSecurity http) throws Exception {
+		http.formLogin(form -> form.loginProcessingUrl("/api/auth/login")
+				.successHandler((request, response, authentication) ->
+						response.setStatus(HttpStatus.NO_CONTENT.value()))
 				.failureHandler((request, response, exception) ->
 						response.sendError(HttpStatus.UNAUTHORIZED.value()))
 				.permitAll());
@@ -72,11 +72,6 @@ class SecurityConfiguration {
 		http.logout(logout -> logout.logoutUrl("/api/auth/logout")
 				.logoutSuccessHandler((request, response, authentication) ->
 						response.setStatus(HttpStatus.NO_CONTENT.value())));
-	}
-
-	private ConcurrentSessionFilter concurrentSessionFilter(SessionRegistry sessionRegistry) {
-		return new ConcurrentSessionFilter(sessionRegistry,
-				event -> event.getResponse().sendError(HttpStatus.UNAUTHORIZED.value()));
 	}
 
 	@Bean

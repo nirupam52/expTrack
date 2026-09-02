@@ -23,7 +23,7 @@ class AuthRequestBodyLimitFilterTest {
 
 	@Test
 	void rejectsOversizedFormLoginPasswordsBeforeAuthentication() throws Exception {
-		MockHttpServletRequest request = request(AccountRequestLockFilter.LOGIN_PATH);
+		MockHttpServletRequest request = request(AuthRequestBodyLimitFilter.LOGIN_PATH);
 		request.setParameter("password", "a".repeat(129));
 		MockHttpServletResponse response = new MockHttpServletResponse();
 
@@ -32,8 +32,23 @@ class AuthRequestBodyLimitFilterTest {
 		assertThat(response.getStatus()).isEqualTo(413);
 	}
 
+	@Test
+	void rejectsOversizedCurrencyUpdatesBeforeParsing() throws Exception {
+		MockHttpServletRequest request = request("PUT", AuthRequestBodyLimitFilter.CURRENCY_PATH);
+		request.setContent(new byte[AuthRequestBodyLimitFilter.MAX_BODY_BYTES + 1]);
+		MockHttpServletResponse response = new MockHttpServletResponse();
+
+		new AuthRequestBodyLimitFilter().doFilter(request, response, unusedChain());
+
+		assertThat(response.getStatus()).isEqualTo(413);
+	}
+
 	private MockHttpServletRequest request(String path) {
-		MockHttpServletRequest request = new MockHttpServletRequest("POST", path);
+		return request("POST", path);
+	}
+
+	private MockHttpServletRequest request(String method, String path) {
+		MockHttpServletRequest request = new MockHttpServletRequest(method, path);
 		request.setServletPath(path);
 		return request;
 	}

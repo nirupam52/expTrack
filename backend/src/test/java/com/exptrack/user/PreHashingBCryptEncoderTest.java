@@ -22,12 +22,14 @@ class PreHashingBCryptEncoderTest {
 	}
 
 	@Test
-	void legacyHashesRejectOverlongGuessesWithoutThrowing() {
+	void retainsLegacyBCryptCompatibilityForOverlongPasswords() {
 		String legacyPassword = "a".repeat(72);
+		String overlongPassword = legacyPassword + "a";
 		String encoded = bcrypt.encode(legacyPassword);
 
 		assertThat(encoder.matches(legacyPassword, encoded)).isTrue();
-		assertThat(encoder.matches(legacyPassword + "a", encoded)).isFalse();
+		assertThat(encoder.matches(overlongPassword, encoded)).isTrue();
+		assertThat(encoder.matches("b" + "a".repeat(71), encoded)).isFalse();
 		assertThat(encoder.matches("é".repeat(40), encoded)).isFalse();
 	}
 

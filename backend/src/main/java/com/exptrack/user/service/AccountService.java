@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.security.core.session.SessionInformation;
 import org.springframework.security.core.session.SessionRegistry;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -68,8 +69,15 @@ public class AccountService {
 	}
 
 	private void expireSessions(String email, HttpSession currentSession) {
-		sessions.getAllSessions(email, false).forEach(SessionInformation::expireNow);
+		sessions.getAllPrincipals().stream()
+				.filter(principal -> email.equalsIgnoreCase(username(principal)))
+				.flatMap(principal -> sessions.getAllSessions(principal, false).stream())
+				.forEach(SessionInformation::expireNow);
 		invalidateCurrentSession(currentSession);
+	}
+
+	private String username(Object principal) {
+		return principal instanceof UserDetails user ? user.getUsername() : principal.toString();
 	}
 
 	static void invalidateCurrentSession(HttpSession currentSession) {
