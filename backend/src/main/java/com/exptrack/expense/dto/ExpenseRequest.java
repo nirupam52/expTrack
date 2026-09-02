@@ -11,6 +11,5 @@ public record ExpenseRequest(
 		@NotBlank @Size(max = 30) String amount,
 		@NotNull Integer categoryId,
 		@NotNull LocalDate date,
-		@Size(max = 500) String note,
-		@Size(max = 512) String currencySnapshot) {
+		@Size(max = 500) String note) {
 }

@@ -5,8 +5,6 @@ import java.util.Objects;
 
 import jakarta.servlet.http.HttpSession;
 
-import com.exptrack.expense.service.CurrencySnapshotService;
-
 import com.exptrack.user.dto.ChangePasswordRequest;
 import com.exptrack.user.dto.SessionResponse;
 import com.exptrack.user.entity.UserAccount;
@@ -41,8 +39,7 @@ public class AccountService {
 	public SessionResponse updateDefaultCurrency(String email, String requestedCurrency) {
 		UserAccount user = find(email);
 		user.setDefaultCurrency(currency(requestedCurrency));
-		return new SessionResponse(user.getEmail(), user.getDefaultCurrency(), user.getCreatedAt(),
-				CurrencySnapshotService.issue(user.getEmail(), user.getDefaultCurrency()));
+		return new SessionResponse(user.getEmail(), user.getDefaultCurrency(), user.getCreatedAt());
 	}
 
 	@Transactional

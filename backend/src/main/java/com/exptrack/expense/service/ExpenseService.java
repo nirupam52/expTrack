@@ -49,16 +49,9 @@ public class ExpenseService {
 
 	public ExpenseResponse create(ExpenseRequest request, String email) {
 		UserAccount user = currentUser(email);
-		Expense expense = expenses.save(new Expense(user.getId(), details(request, currencySnapshot(request, user))));
+		Expense expense = expenses.save(new Expense(user.getId(), details(request, user.getDefaultCurrency())));
 		return response(expense);
 	}
-
-	private String currencySnapshot(ExpenseRequest request, UserAccount user) {
-		if (request.currencySnapshot() == null) return user.getDefaultCurrency();
-		return CurrencySnapshotService.resolve(request.currencySnapshot(), user.getEmail())
-				.orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Currency snapshot is invalid"));
-	}
-
 	public ExpensePageResponse history(ExpenseHistoryRequest request, String email) {
 		int limit = request.limit() == null ? 20 : request.limit();
 		validateHistoryFilters(request.categoryId(), request.currency(), request.from(), request.to());
