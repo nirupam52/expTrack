@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 const categories = [{ id: 1, name: 'Groceries' }, { id: 2, name: 'Transport' }];
-const session = { email: 'test@example.com', defaultCurrency: 'USD' };
+const session = { email: 'test@example.com', defaultCurrency: 'USD', createdAt: '2026-01-15T10:30:00Z' };
 const dashboard = {
 	month: '2026-08',
 	currencies: [{ currency: 'USD', totalMinor: '4250', categories: [{ categoryId: 1, amountMinor: '3000' }, { categoryId: 2, amountMinor: '1250' }] }],
@@ -11,6 +11,7 @@ const dashboard = {
 async function mockLedger(page: Page) {
 	await page.route('**/api/auth/session', (route) => route.fulfill({ json: session }));
 	await page.route('**/api/categories', (route) => route.fulfill({ json: categories }));
+	await page.route('**/api/auth/csrf', (route) => route.fulfill({ json: { token: 'test-token' } }));
 }
 
 test('loads the dashboard', async ({ page }) => {
@@ -86,6 +87,35 @@ test('prioritises adding an expense in the desktop overview', async ({ page }) =
 	await addExpense.click();
 	await expect(page.getByRole('heading', { name: 'Add an expense' })).toBeVisible();
 });
+test('does not send a currency snapshot when saving an expense', async ({ page }) => {
+	const expenseBodies: Array<Record<string, unknown>> = [];
+	await mockLedger(page);
+	await page.route('**/api/expenses', (route) => {
+		expenseBodies.push(route.request().postDataJSON() as Record<string, unknown>);
+		return route.fulfill({
+			json: { id: 2, title: 'Coffee', amountMinor: '1250', categoryId: 1, date: '2026-08-20', currency: 'USD', note: null }
+		});
+	});
+
+	await page.goto('/');
+	await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'Add expense', exact: true }).click();
+	await expect(page.getByRole('heading', { name: 'Add an expense' })).toBeVisible();
+
+	await page.getByRole('textbox', { name: 'What was it?' }).fill('Coffee');
+	await page.getByRole('textbox', { name: 'Amount' }).fill('12.50');
+	await page.getByRole('textbox', { name: 'Date' }).fill('2026-08-20');
+	await page.getByRole('button', { name: 'Save expense' }).click();
+	await expect.poll(() => expenseBodies).toHaveLength(1);
+	expect(expenseBodies[0]).toMatchObject({
+		title: 'Coffee',
+		amount: '12.50',
+		categoryId: 1,
+		date: '2026-08-20',
+		note: ''
+	});
+	expect(expenseBodies[0]).not.toHaveProperty('currencySnapshot');
+});
+
 
 test('shows a dashboard error and retries', async ({ page }) => {
 	let requests = 0;
