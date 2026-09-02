@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 const categories = [{ id: 1, name: 'Groceries' }, { id: 2, name: 'Transport' }];
-const session = { email: 'test@example.com', defaultCurrency: 'USD', createdAt: '2026-01-15T10:30:00Z', currencySnapshot: 'test-currency-snapshot' };
+const session = { email: 'test@example.com', defaultCurrency: 'USD', createdAt: '2026-01-15T10:30:00Z' };
 const dashboard = {
 	month: '2026-08',
 	currencies: [{ currency: 'USD', totalMinor: '4250', categories: [{ categoryId: 1, amountMinor: '3000' }, { categoryId: 2, amountMinor: '1250' }] }],
@@ -87,15 +87,9 @@ test('prioritises adding an expense in the desktop overview', async ({ page }) =
 	await addExpense.click();
 	await expect(page.getByRole('heading', { name: 'Add an expense' })).toBeVisible();
 });
-test('preserves the currency captured by an open expense form after the default changes', async ({ page }) => {
-	let currentDefaultCurrency = 'USD';
+test('does not send a currency snapshot when saving an expense', async ({ page }) => {
 	const expenseBodies: Array<Record<string, unknown>> = [];
 	await mockLedger(page);
-	await page.route('**/api/account/default-currency', (route) => {
-		const body = route.request().postDataJSON() as { defaultCurrency: string };
-		currentDefaultCurrency = body.defaultCurrency;
-		return route.fulfill({ json: { ...session, defaultCurrency: currentDefaultCurrency } });
-	});
 	await page.route('**/api/expenses', (route) => {
 		expenseBodies.push(route.request().postDataJSON() as Record<string, unknown>);
 		return route.fulfill({
@@ -106,19 +100,6 @@ test('preserves the currency captured by an open expense form after the default 
 	await page.goto('/');
 	await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button', { name: 'Add expense', exact: true }).click();
 	await expect(page.getByRole('heading', { name: 'Add an expense' })).toBeVisible();
-	await expect(page.locator('section[aria-labelledby="add-expense-title"] .heading > p')).toHaveText('USD');
-
-	const updateResult = await page.evaluate(async () => {
-		const csrf = await fetch('/api/auth/csrf').then((response) => response.json() as Promise<{ token: string }>);
-		const response = await fetch('/api/account/default-currency', {
-			method: 'PUT',
-			headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf.token },
-			body: JSON.stringify({ defaultCurrency: 'EUR' })
-		});
-		return response.ok;
-	});
-	expect(updateResult).toBe(true);
-	expect(currentDefaultCurrency).toBe('EUR');
 
 	await page.getByRole('textbox', { name: 'What was it?' }).fill('Coffee');
 	await page.getByRole('textbox', { name: 'Amount' }).fill('12.50');
@@ -130,9 +111,9 @@ test('preserves the currency captured by an open expense form after the default 
 		amount: '12.50',
 		categoryId: 1,
 		date: '2026-08-20',
-		note: '',
-		currencySnapshot: 'test-currency-snapshot'
+		note: ''
 	});
+	expect(expenseBodies[0]).not.toHaveProperty('currencySnapshot');
 });
 
 

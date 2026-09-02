@@ -63,7 +63,6 @@ class AccountEndpointTest {
 		assertThat(legacySession.get("createdAt").isNull()).isTrue();
 	}
 
-
 	@Test
 	void defaultCurrencyUpdateValidatesTheCurrencyAndPersistsTheSavedValue() throws Exception {
 		registerAndSignIn(browser, "cur@example.com");

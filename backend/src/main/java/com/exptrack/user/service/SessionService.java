@@ -8,6 +8,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class SessionService {
+
 	private final UserAccountRepository users;
 
 	public SessionService(UserAccountRepository users) {

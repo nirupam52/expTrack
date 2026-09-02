@@ -28,26 +28,6 @@ const emptyHistoryFilters: ExpenseHistoryFilters = {
 	to: ''
 };
 
-type LedgerModel = {
-	session: Session | null;
-	categories: Category[];
-	loading: boolean;
-	submitting: boolean;
-	loadError: string;
-	signOutError: string;
-	error: string;
-	editing: Expense | null;
-	expenseVersion: number;
-	view: View;
-	savingCurrency: boolean;
-	savingPassword: boolean;
-	currencyError: string;
-	passwordError: string;
-	authNotice: string;
-	historyFilters: ExpenseHistoryFilters;
-	historyRemount: number;
-	toast: Toast | null;
-};
 
 class LedgerPageController {
 	session = $state<Session | null>(null);
@@ -72,8 +52,9 @@ class LedgerPageController {
 	historyRemount = $state(0);
 	toast = $state<Toast | null>(null);
 	private toastSequence = 0;
+	private currencyRequest = 0;
+	private passwordRequest = 0;
 
-	readonly model: LedgerModel = createLedgerModel(this);
 
 	loadSession = async () => {
 		this.loading = true;
@@ -191,37 +172,43 @@ class LedgerPageController {
 		this.passwordError = '';
 		this.view = 'account';
 	};
-
 	saveDefaultCurrency = async (currency: string) => {
+		const request = ++this.currencyRequest;
 		this.currencyError = '';
 		this.savingCurrency = true;
 		try {
 			const updated = await put('/api/account/default-currency', { defaultCurrency: currency }, sessionSchema);
 			if (!updated) throw new Error('Default currency response is missing.');
+			if (request !== this.currencyRequest) return false;
 			this.session = updated;
 			return true;
 		} catch (cause) {
+			if (request !== this.currencyRequest) return false;
 			this.currencyError = accountError(cause, 'Could not save the default currency. Please try again.');
 			return false;
 		} finally {
-			this.savingCurrency = false;
+			if (request === this.currencyRequest) this.savingCurrency = false;
 		}
 	};
 
 	changePassword = async (passwords: AccountPasswords) => {
+		const request = ++this.passwordRequest;
 		this.passwordError = '';
 		this.savingPassword = true;
 		try {
 			await post('/api/account/password', passwords);
+			if (request !== this.passwordRequest) return false;
 			this.resetAfterPasswordChange();
 			return true;
 		} catch (cause) {
+			if (request !== this.passwordRequest) return false;
 			this.passwordError = accountError(cause, 'Could not change the password. Please try again.');
 			return false;
 		} finally {
-			this.savingPassword = false;
+			if (request === this.passwordRequest) this.savingPassword = false;
 		}
 	};
+
 
 	cancelEdit = () => {
 		this.editing = null;
@@ -297,6 +284,10 @@ class LedgerPageController {
 	}
 
 	private resetSession() {
+		this.currencyRequest += 1;
+		this.passwordRequest += 1;
+		this.savingCurrency = false;
+		this.savingPassword = false;
 		this.session = null;
 		this.editing = null;
 		this.view = 'dashboard';
@@ -317,54 +308,18 @@ class LedgerPageController {
 	}
 
 	private resetAfterPasswordChange() {
+		this.currencyRequest += 1;
+		this.savingCurrency = false;
+		this.savingPassword = false;
 		this.session = null;
 		this.view = 'dashboard';
 		this.editing = null;
 		this.clearDirtyState();
 		this.authNotice = 'Password changed. Sign in again.';
 	}
-}
 
-function createLedgerModel(controller: LedgerPageController): LedgerModel {
-	const model = createCoreModel(controller);
-	Object.defineProperties(model, Object.getOwnPropertyDescriptors(createAccountModel(controller)));
-	Object.defineProperties(model, Object.getOwnPropertyDescriptors(createHistoryModel(controller)));
-	return model as LedgerModel;
-}
 
-function createCoreModel(controller: LedgerPageController) {
-	return {
-		get session() { return controller.session; },
-		get categories() { return controller.categories; },
-		get loading() { return controller.loading; },
-		get submitting() { return controller.submitting; },
-		get loadError() { return controller.loadError; },
-		get signOutError() { return controller.signOutError; },
-		get error() { return controller.error; },
-		get editing() { return controller.editing; },
-		get expenseVersion() { return controller.expenseVersion; },
-		get view() { return controller.view; }
-	};
 }
-
-function createAccountModel(controller: LedgerPageController) {
-	return {
-		get savingCurrency() { return controller.savingCurrency; },
-		get savingPassword() { return controller.savingPassword; },
-		get currencyError() { return controller.currencyError; },
-		get passwordError() { return controller.passwordError; },
-		get authNotice() { return controller.authNotice; }
-	};
-}
-
-function createHistoryModel(controller: LedgerPageController) {
-	return {
-		get historyFilters() { return controller.historyFilters; },
-		get historyRemount() { return controller.historyRemount; },
-		get toast() { return controller.toast; }
-	};
-}
-
 function expenseError(cause: unknown, fallback: string) {
 	return cause instanceof HttpError && cause.status === 400
 		? `${cause.detail ? `${cause.detail}. ` : ''}Enter a title, positive amount, category, and date.`

@@ -52,6 +52,7 @@ public class ExpenseService {
 		Expense expense = expenses.save(new Expense(user.getId(), details(request, user.getDefaultCurrency())));
 		return response(expense);
 	}
+
 	public ExpensePageResponse history(ExpenseHistoryRequest request, String email) {
 		int limit = request.limit() == null ? 20 : request.limit();
 		validateHistoryFilters(request.categoryId(), request.currency(), request.from(), request.to());

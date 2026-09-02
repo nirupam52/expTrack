@@ -22,6 +22,7 @@
 	let currencyStatus = $state('');
 	let currencyFieldError = $state('');
 	let currencyErrorDismissed = $state(false);
+	let currencySaveRequest = 0;
 
 	$effect.pre(() => {
 		if (currencyInitialized) return;
@@ -56,8 +57,12 @@
 	}
 
 	async function saveCurrency(currency: string) {
+		const request = ++currencySaveRequest;
 		const saved = await onSave(currency);
-		if (saved) currencyStatus = 'Default currency saved.';
+		if (request === currencySaveRequest && saved) {
+			currencyInput = currency;
+			currencyStatus = 'Default currency saved.';
+		}
 	}
 </script>
 

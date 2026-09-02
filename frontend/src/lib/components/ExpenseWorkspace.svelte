@@ -6,7 +6,7 @@
 	import { amountForInput } from '$lib/utils/format-currency';
 	import { today } from '$lib/utils/date';
 
-	type View = 'dashboard' | 'add' | 'history' | 'account';
+	type View = 'dashboard' | 'add' | 'history';
 
 	let {
 		session,
@@ -88,7 +88,7 @@
 		{:else}
 			<ExpenseForm
 				{categories}
-				initial={{ title: '', amount: '', categoryId: categories[0]?.id ?? null, date: today(), note: '', currencySnapshot: session.currencySnapshot }}
+				initial={{ title: '', amount: '', categoryId: categories[0]?.id ?? null, date: today(), note: '' }}
 				{submitting}
 				{error}
 				onDirty={onDirty}
