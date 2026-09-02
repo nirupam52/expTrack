@@ -110,16 +110,46 @@ class ExpenseEndpointTest {
 
 		assertThat(created.statusCode()).isEqualTo(HttpStatus.CREATED.value());
 		JsonNode createdExpense = json.readTree(created.body());
+		int createdId = createdExpense.get("id").asInt();
 		assertThat(createdExpense.get("amountMinor").isTextual()).isTrue();
 		assertThat(createdExpense.get("amountMinor").asText()).isEqualTo("9223372036854775807");
 		assertThat(createdExpense.get("categoryId").asInt()).isEqualTo(1);
 		assertThat(createdExpense.get("currency").asText()).isEqualTo("USD");
-		assertThat(jdbc.queryForObject("SELECT category_id FROM expenses WHERE title = ?", Integer.class, "Coffee")).isEqualTo(1);
-		assertThat(jdbc.queryForObject("SELECT currency FROM expenses WHERE title = ?", String.class, "Coffee")).isEqualTo("USD");
+		assertThat(jdbc.queryForObject("SELECT category_id FROM expenses WHERE id = ?", Integer.class, createdId)).isEqualTo(1);
+		assertThat(jdbc.queryForObject("SELECT currency FROM expenses WHERE id = ?", String.class, createdId)).isEqualTo("USD");
 		assertThat(recent.statusCode()).isEqualTo(HttpStatus.OK.value());
 		assertThat(json.readTree(recent.body()).get("items").get(0).get("title").asText()).isEqualTo("Coffee");
 		assertThat(json.readTree(otherRecent.body()).get("items")).isEmpty();
 	}
+
+	@Test
+	void expenseCreationUsesCurrentDefaultAndPreservesRecordedCurrency() throws Exception {
+		registerAndSignIn("expense-currency@example.com", "USD");
+		HttpResponse<String> first = create(Map.of("title", "First coffee", "amount", "4.50", "categoryId", 1, "date", "2026-08-04"));
+		jdbc.update("UPDATE users SET default_currency = ? WHERE email = ?", "EUR", "expense-currency@example.com");
+		HttpResponse<String> second = create(Map.of("title", "Second coffee", "amount", "4.50", "categoryId", 1, "date", "2026-08-04"));
+
+		assertThat(first.statusCode()).isEqualTo(HttpStatus.CREATED.value());
+		assertThat(json.readTree(first.body()).get("currency").asText()).isEqualTo("USD");
+		assertThat(second.statusCode()).isEqualTo(HttpStatus.CREATED.value());
+		assertThat(json.readTree(second.body()).get("currency").asText()).isEqualTo("EUR");
+		assertThat(jdbc.queryForObject("SELECT currency FROM expenses WHERE title = ?", String.class, "First coffee")).isEqualTo("USD");
+		assertThat(jdbc.queryForObject("SELECT currency FROM expenses WHERE title = ?", String.class, "Second coffee")).isEqualTo("EUR");
+	}
+
+	@Test
+	void expenseUpdatePreservesTheRecordedCurrencyAfterDefaultChanges() throws Exception {
+		registerAndSignIn("expense-recorded-currency@example.com", "USD");
+		HttpResponse<String> created = create(Map.of("title", "Recorded coffee", "amount", "4.50", "categoryId", 1, "date", "2026-08-04"));
+		int expenseId = json.readTree(created.body()).get("id").asInt();
+		jdbc.update("UPDATE users SET default_currency = ? WHERE email = ?", "EUR", "expense-recorded-currency@example.com");
+		HttpResponse<String> updated = put("/api/expenses/" + expenseId,
+				Map.of("title", "Updated coffee", "amount", "5.50", "categoryId", 1, "date", "2026-08-04"));
+
+		assertThat(updated.statusCode()).isEqualTo(HttpStatus.OK.value());
+		assertThat(json.readTree(updated.body()).get("currency").asText()).isEqualTo("USD");
+	}
+
 
 	@Test
 	void expenseRejectsMissingOrBlankRequiredDetailsAndNonPositiveAmounts() throws Exception {
@@ -198,6 +228,14 @@ class ExpenseEndpointTest {
 
 	private HttpResponse<String> post(String path, Map<String, ?> body) throws Exception {
 		return post(browser, path, body);
+	}
+
+	private HttpResponse<String> put(String path, Map<String, ?> body) throws Exception {
+		return browser.send(HttpRequest.newBuilder(URI.create(url(path)))
+				.header("Content-Type", "application/json")
+				.header("X-CSRF-TOKEN", csrfToken())
+				.PUT(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)))
+				.build(), HttpResponse.BodyHandlers.ofString());
 	}
 
 	private HttpResponse<String> post(HttpClient client, String path, Map<String, ?> body) throws Exception {

@@ -23,13 +23,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 		properties = {"spring.datasource.url=jdbc:sqlite::memory:", "server.servlet.session.cookie.secure=false", "exptrack.auth.max-attempts=100"})
 class RegistrationEndpointTest {
 
-	@LocalServerPort
-	private int port;
-
-	private HttpClient browser = newBrowser();
+	private final int port;
+	private HttpClient browser;
 	private final ObjectMapper json = new ObjectMapper();
+	private final JdbcTemplate jdbc;
+
 	@Autowired
-	private JdbcTemplate jdbc;
+	RegistrationEndpointTest(@LocalServerPort int port, JdbcTemplate jdbc) {
+		this.port = port;
+		this.browser = newBrowser();
+		this.jdbc = jdbc;
+	}
 
 
 	@Test
@@ -40,9 +44,33 @@ class RegistrationEndpointTest {
 		assertThat(register("not-an-email", "correct-horse-battery-staple", "USD").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 		assertThat(register("ava@", "correct-horse-battery-staple", "USD").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 		assertThat(register("cam@example.com", "short", "USD").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
-		assertThat(register("cam@example.com", "            ", "USD").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 		assertThat(register("cam@example.com", "correct-horse-battery-staple", "").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 		assertThat(register("dan@example.com", "correct-horse-battery-staple", "invalid").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+	}
+
+	@Test
+	void registrationAcceptsPasswordsAtBothInclusiveCodePointBoundaries() throws Exception {
+		assertThat(register("min@example.com", "a".repeat(15), "USD").statusCode()).isEqualTo(HttpStatus.CREATED.value());
+		assertThat(register("max@example.com", "a".repeat(64), "USD").statusCode()).isEqualTo(HttpStatus.CREATED.value());
+	}
+
+	@Test
+	void registrationRejectsPasswordsOutsideInclusiveCodePointBoundaries() throws Exception {
+		assertThat(register("short-boundary@example.com", "a".repeat(14), "USD").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+		assertThat(register("long-boundary@example.com", "a".repeat(65), "USD").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+	}
+
+	@Test
+	void registrationMeasuresUnicodePasswordsInCodePoints() throws Exception {
+		String emoji = "\uD83D\uDE00";
+
+		assertThat(register("unicode-min@example.com", emoji.repeat(15), "USD").statusCode()).isEqualTo(HttpStatus.CREATED.value());
+		assertThat(register("unicode-short@example.com", emoji.repeat(14), "USD").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+	}
+
+	@Test
+	void registrationAcceptsWhitespaceOnlyPasswordsWhenLengthIsValid() throws Exception {
+		assertThat(register("whitespace@example.com", " ".repeat(15), "USD").statusCode()).isEqualTo(HttpStatus.CREATED.value());
 	}
 
 	@Test

@@ -67,3 +67,19 @@ A member of a group explicitly included in one group expense. Participants may v
 ## Default currency
 
 The currency selected by a user for new v1 expenses. Changing it does not alter existing expense records.
+
+## Profile menu
+
+The action menu opened from the signed-in header profile button. It contains Account settings and sign out.
+
+## Account settings
+
+The signed-in page for viewing account information and changing the default currency or password. The Profile menu opens this page.
+
+## Account creation time
+
+The immutable time when an account was created. The Account page shows this value as an account creation date. For accounts created before this value was recorded, it shows “Not available.”
+
+## Password change
+
+A security action that replaces the password used for email/password sign-in. The user provides the current password, new password, and matching confirmation. It ends every active session and sends the user to sign in.
