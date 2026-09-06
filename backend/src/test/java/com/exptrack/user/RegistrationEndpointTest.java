@@ -46,6 +46,20 @@ class RegistrationEndpointTest {
 	}
 
 	@Test
+	void mixedCaseEmailRegistrationRemainsCaseInsensitive() throws Exception {
+		assertThat(register("MiXeD@Example.com", "correct-horse-battery-staple", "USD").statusCode())
+				.isEqualTo(HttpStatus.CREATED.value());
+		browser = newBrowser();
+		HttpResponse<Void> signIn = signIn("mixed@example.com", "correct-horse-battery-staple");
+		HttpResponse<String> session = browser.send(HttpRequest.newBuilder(URI.create(url("/api/auth/session")))
+				.GET().build(), HttpResponse.BodyHandlers.ofString());
+
+		assertThat(signIn.statusCode()).isEqualTo(HttpStatus.NO_CONTENT.value());
+		assertThat(session.statusCode()).isEqualTo(HttpStatus.OK.value());
+		assertThat(json.readTree(session.body()).get("email").asText()).isEqualTo("mixed@example.com");
+	}
+
+	@Test
 	void registrationRequiresCsrfAndSessionRequiresAuthentication() throws Exception {
 		HttpResponse<Void> registration = browser.send(HttpRequest.newBuilder(URI.create(url("/api/auth/register")))
 				.header("Content-Type", "application/json")
