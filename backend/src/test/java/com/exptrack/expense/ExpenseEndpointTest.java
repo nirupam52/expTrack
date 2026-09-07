@@ -21,7 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(
 		webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-		properties = {"spring.datasource.url=jdbc:sqlite::memory:", "server.servlet.session.cookie.secure=false", "exptrack.auth.max-attempts=100"})
+		properties = {"server.servlet.session.cookie.secure=false", "exptrack.auth.max-attempts=100"})
 class ExpenseEndpointTest extends AbstractEndpointTest {
 
 	@LocalServerPort
