@@ -4,7 +4,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-
+import com.exptrack.AbstractEndpointTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -15,7 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest(
 		webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
 		properties = {"spring.datasource.url=jdbc:sqlite::memory:", "exptrack.auth.max-attempts=1"})
-class AuthRateLimitTest {
+class AuthRateLimitTest extends AbstractEndpointTest {
 
 	@LocalServerPort
 	private int port;

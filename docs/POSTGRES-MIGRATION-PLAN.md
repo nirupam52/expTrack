@@ -44,7 +44,7 @@ After the first production deployment, Flyway migrations are append-only. Do not
 
 Update this list only after the matching acceptance gate passes:
 
-- [ ] Checkpoint 0 - Freeze current behavior
+- [x] Checkpoint 0 - Freeze current behavior
 - [ ] Checkpoint 1 - Switch backend persistence to PostgreSQL
 - [ ] Checkpoint 2 - Switch Docker Compose and the runtime image
 - [ ] Checkpoint 3 - Make CI prove PostgreSQL parity
@@ -484,3 +484,10 @@ An agent must not mark a checkpoint as complete when its acceptance gate is miss
 - Verification: Focused `RegistrationEndpointTest` and `ExpenseWorkflowEndpointTest` passed (12 tests). Full gate equivalent `docker run --rm -v "$PWD":/workspace -w /workspace maven:3.9-eclipse-temurin-21 mvn -B verify` failed in the existing `ExpenseEndpointTest.signedInUserCanAddAnExactExpenseAndSeeOnlyTheirRecentExpenses` check with two `Coffee` rows.
 - Result: BLOCKED
 - Follow-up: The defect is low complexity. A minimal fix is a unique fixture or owner-scoped assertion. The preferred fix is shared test cleanup that clears `expenses` and `users` between tests, aligned with Checkpoint 1. Checkpoint 0 remains incomplete.
+
+### 2026-09-06 - Checkpoint 0
+- Agent: Main session (orchestrated fix-up)
+- Changes: Added `backend/src/test/java/com/exptrack/AbstractEndpointTest.java`, a shared base class that clears `expenses` and `users` in a `@BeforeEach` hook. All five `@SpringBootTest` endpoint test classes (`RegistrationEndpointTest`, `AuthRateLimitTest`, `HealthEndpointTest`, `ExpenseEndpointTest`, `ExpenseWorkflowEndpointTest`) now extend it and no longer declare their own `JdbcTemplate` field. Root cause of the prior BLOCKED result: Spring caches the `ApplicationContext` across test classes with identical `@SpringBootTest(properties = ...)`, so `ExpenseEndpointTest` and `ExpenseWorkflowEndpointTest` shared one in-memory SQLite connection with no reset between tests, letting two differently-owned "Coffee" fixtures collide on an unscoped `SELECT ... WHERE title = ?`.
+- Verification: `cd backend && mvn -B verify` run locally (Temurin 25 toolchain, `maven.compiler.release=21`). Result: `Tests run: 22, Failures: 0, Errors: 0, Skipped: 0`, `BUILD SUCCESS`.
+- Result: PASS
+- Follow-up: none. The same `@BeforeEach` reset seam is reusable for Checkpoint 1 by swapping the SQLite `DELETE` statements for a Postgres `TRUNCATE ... RESTART IDENTITY CASCADE` once Testcontainers is wired in.

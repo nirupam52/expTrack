@@ -11,25 +11,21 @@ import java.util.Map;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.exptrack.AbstractEndpointTest;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpStatus;
-import org.springframework.jdbc.core.JdbcTemplate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(
 		webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
 		properties = {"spring.datasource.url=jdbc:sqlite::memory:", "server.servlet.session.cookie.secure=false", "exptrack.auth.max-attempts=100"})
-class ExpenseWorkflowEndpointTest {
+class ExpenseWorkflowEndpointTest extends AbstractEndpointTest {
 
 	@LocalServerPort
 	private int port;
-
-	@Autowired
-	private JdbcTemplate jdbc;
 
 	private final HttpClient browser = newBrowser();
 	private final ObjectMapper json = new ObjectMapper();

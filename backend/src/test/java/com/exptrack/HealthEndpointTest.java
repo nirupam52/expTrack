@@ -12,7 +12,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest(
 		webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
 		properties = "spring.datasource.url=jdbc:sqlite::memory:")
-class HealthEndpointTest {
+class HealthEndpointTest extends AbstractEndpointTest {
 
 	@LocalServerPort
 	private int port;
