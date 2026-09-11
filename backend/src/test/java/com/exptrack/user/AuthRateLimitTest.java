@@ -14,7 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(
 		webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-		properties = {"spring.datasource.url=jdbc:sqlite::memory:", "exptrack.auth.max-attempts=1"})
+		properties = "exptrack.auth.max-attempts=1")
 class AuthRateLimitTest extends AbstractEndpointTest {
 
 	@LocalServerPort

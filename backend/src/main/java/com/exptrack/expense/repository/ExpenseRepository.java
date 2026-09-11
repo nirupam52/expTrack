@@ -14,15 +14,18 @@ public interface ExpenseRepository extends JpaRepository<Expense, Integer> {
 	@Query(value = """
 			SELECT e.* FROM expenses e
 			WHERE e.user_id = :#{#history.userId}
-			AND (:#{#history.text} IS NULL OR e.id IN (
-				SELECT rowid FROM expenses_search
-				WHERE expenses_search MATCH :#{#history.text}
+			AND (CAST(:#{#history.text} AS text) IS NULL OR to_tsvector(
+				'simple'::regconfig,
+				coalesce(e.title, '') || ' ' || coalesce(e.note, '')
+			) @@ websearch_to_tsquery(
+				'simple'::regconfig,
+				:#{#history.text}
 			))
-			AND (:#{#history.categoryId} IS NULL OR e.category_id = :#{#history.categoryId})
-			AND (:#{#history.currency} IS NULL OR e.currency = :#{#history.currency})
-			AND (:#{#history.fromDate} IS NULL OR e.expense_date >= :#{#history.fromDate})
-			AND (:#{#history.toDate} IS NULL OR e.expense_date <= :#{#history.toDate})
-			AND (:#{#history.cursorDate} IS NULL OR e.expense_date < :#{#history.cursorDate}
+			AND (CAST(:#{#history.categoryId} AS integer) IS NULL OR e.category_id = :#{#history.categoryId})
+			AND (CAST(:#{#history.currency} AS text) IS NULL OR e.currency = :#{#history.currency})
+			AND (CAST(:#{#history.fromDate} AS date) IS NULL OR e.expense_date >= :#{#history.fromDate})
+			AND (CAST(:#{#history.toDate} AS date) IS NULL OR e.expense_date <= :#{#history.toDate})
+			AND (CAST(:#{#history.cursorDate} AS date) IS NULL OR e.expense_date < :#{#history.cursorDate}
 				OR (e.expense_date = :#{#history.cursorDate} AND e.id < :#{#history.cursorId}))
 			ORDER BY e.expense_date DESC, e.id DESC
 			LIMIT :#{#history.limit}
