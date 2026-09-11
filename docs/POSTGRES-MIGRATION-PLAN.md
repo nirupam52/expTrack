@@ -2,7 +2,7 @@
 
 ## Status
 
-Planned. This is a living execution guide for agents working across multiple sessions.
+Complete. This is a living execution guide for agents working across multiple sessions.
 
 ## Purpose
 
@@ -47,8 +47,8 @@ Update this list only after the matching acceptance gate passes:
 - [x] Checkpoint 0 - Freeze current behavior
 - [x] Checkpoint 1 - Switch backend persistence to PostgreSQL
 - [x] Checkpoint 2 - Switch Docker Compose and the runtime image
-- [ ] Checkpoint 3 - Make CI prove PostgreSQL parity
-- [ ] Checkpoint 4 - Update documentation and remove stale references
+- [x] Checkpoint 3 - Make CI prove PostgreSQL parity
+- [x] Checkpoint 4 - Update documentation and remove stale references
 
 
 ## Current repository map
@@ -505,3 +505,19 @@ An agent must not mark a checkpoint as complete when its acceptance gate is miss
 - Verification: `docker compose down --volumes --remove-orphans` then `docker compose up --build --wait --wait-timeout 180` reached healthy for both `postgres` and `app`. `docker compose config` and `docker compose -f compose.yaml -f compose.debug.yaml config` confirmed the Postgres service and env vars merge correctly. Re-ran the container-hardening checks from `.github/workflows/ci.yml` (uid/gid 10001, read-only rootfs, empty `CapEff`, `NoNewPrivs=1`): all passed. `curl http://127.0.0.1:8080/actuator/health` returned `{"status":"UP"}`. Exercised the full REST workflow against the running stack: register, login, create two expenses in different categories, title search, note search, category filter, dashboard aggregation, update, delete, and a second user confirming ownership isolation (empty result set for another owner's data) — all returned the expected status codes and bodies. `cd backend && mvn -B clean verify` still exits 0 against Testcontainers Postgres.
 - Result: PASS
 - Follow-up: Checkpoint 3 should confirm `.github/workflows/ci.yml`'s `container` job now passes end-to-end once this branch reaches a PR based on `main` (the job could not be exercised via GitHub Actions directly from this stacked branch, since `pull_request` triggers are scoped to `branches: [main]`; local Compose verification above stands in for it). Checkpoint 4 should still remove the `EXPTRACK_DATABASE_PATH`/SQLite comment text search hits and update README/spec references.
+
+### 2026-09-10 - Checkpoint 3
+- Agent: Main session (stacked branch postgres-migration-checkpoint-3-4 off postgres-migration-checkpoint-2)
+- Changes: Reviewed `.github/workflows/ci.yml` against the checklist. No workflow changes were required: `mvn -B verify` remains the backend gate and already exercises Testcontainers PostgreSQL; the `container` job already resets volumes before `docker compose up --build --wait`; `--wait` now blocks on both the `postgres` and `app` healthchecks introduced in checkpoint 2; the existing uid/gid, read-only rootfs, `CapEff`, and `NoNewPrivs` checks are untouched.
+- Verification: opened a throwaway PR (#29, `postgres-migration-checkpoint-3-4` -> `main`, never merged) solely to satisfy `ci.yml`'s `pull_request: branches: [main]` trigger and get a real GitHub Actions run for the full checkpoint 0-4 stack. Run 34558895648: `backend` passed in 50s, `frontend` passed in 20s, `container` passed in 2m47s (previously failing with `Connection to localhost:5432 refused` before checkpoint 2). Closed #29 without merging once the run was confirmed green.
+- Result: PASS
+- Follow-up: none.
+
+### 2026-09-10 - Checkpoint 4
+- Agent: Main session (stacked branch postgres-migration-checkpoint-3-4 off postgres-migration-checkpoint-2)
+- Changes: `README.md` now documents the `postgres-data` volume name, the `EXPTRACK_DATABASE_NAME`/`USERNAME`/`PASSWORD` local override variables, `docker compose down --volumes` as the reset path, and the debug Postgres port. `docs/SPEC-v1-personal-expense-tracker.md`: replaced "SQLite database" with "PostgreSQL database" in Implementation Decisions and removed the stale Out of Scope line "PostgreSQL support beyond keeping it a future option."
+- Verification: searched active source, configuration, migrations, and documentation for `sqlite`, `SQLiteDialect`, `org.xerial`, `EXPTRACK_DATABASE_PATH`, `expenses_search`, `fts5`, `rowid`, `expense-data`, `COLLATE NOCASE`, and `AUTOINCREMENT` (case-insensitive). The only remaining hits are inside this plan document's own historical narrative and checkpoint log, which record what changed and are exempt per this document's own "Build output and Git history do not need cleanup" rule, plus the new PostgreSQL GIN index name `idx_expenses_search` in `V4__add_expense_search.sql` (a real Postgres index, not a leftover SQLite artifact). No hits in `README.md`, the spec, ADRs, the glossary, `Dockerfile`, `compose.yaml`, `compose.debug.yaml`, or backend source/config.
+
+Ran the Final cutover rehearsal items that the checkpoint 2 and 3 logs did not yet cover, against a fresh `docker compose up --build --wait` stack: registered a user with a non-USD default currency, created three same-date expenses, confirmed the currency filter (`?currency=EUR` returns all three, `?currency=USD` returns none), and confirmed 3-page cursor pagination with `limit=1` walks all three same-date items in a stable order with a `null` `nextCursor` on the last page. Inspected the database directly with `psql`: `flyway_schema_history` shows all 4 migrations applied and successful; `\dt` shows only `expenses`, `users`, and `flyway_schema_history`; `\di` shows the expected owner/date, owner/category/date/id, owner/date/id, and `lower(email)` unique indexes plus `idx_expenses_search`; a `pg_class` search for `%expenses_search%` or `%fts%` returns exactly one relation, `idx_expenses_search`, with `relkind = i` (an index, not the old SQLite FTS5 virtual table).
+- Result: PASS
+- Follow-up: none. All four checkpoints are complete and the Final cutover rehearsal has been fully exercised across the checkpoint 2, 3, and 4 verification entries above.
