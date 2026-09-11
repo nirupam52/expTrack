@@ -47,8 +47,8 @@ Update this list only after the matching acceptance gate passes:
 - [x] Checkpoint 0 - Freeze current behavior
 - [x] Checkpoint 1 - Switch backend persistence to PostgreSQL
 - [x] Checkpoint 2 - Switch Docker Compose and the runtime image
-- [ ] Checkpoint 3 - Make CI prove PostgreSQL parity
-- [ ] Checkpoint 4 - Update documentation and remove stale references
+- [x] Checkpoint 3 - Make CI prove PostgreSQL parity
+- [x] Checkpoint 4 - Update documentation and remove stale references
 
 
 ## Current repository map

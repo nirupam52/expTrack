@@ -34,7 +34,7 @@ Deliver a mobile-friendly personal expense tracker. Visitors can create an accou
 
 ## Implementation Decisions
 
-- Keep the product a modular monolith with a SvelteKit browser client, Spring Boot REST API, and SQLite database. Do not add services, CQRS, event sourcing, or generic repositories.
+- Keep the product a modular monolith with a SvelteKit browser client, Spring Boot REST API, and PostgreSQL database. Do not add services, CQRS, event sourcing, or generic repositories.
 - Use email/password registration and sign-in. Store only strong password hashes; use secure, HttpOnly, server-side browser sessions with CSRF protection for state-changing requests.
 - Derive the current user exclusively from the authenticated session. No request may select an expense or other owner by client-supplied owner ID.
 - Model expenses as user-owned records containing title, a positive exact amount stored as integer minor units, category, date, recorded currency, and optional short note. The owner is immutable. Validate entered currency precision and never silently round an amount.
@@ -62,7 +62,6 @@ Deliver a mobile-friendly personal expense tracker. Visitors can create an accou
 - Budgets, forecasts, recurring expenses, reports, saved searches, tags, receipts, and custom query builders.
 - Invitations, account approval, email verification, social sign-in, password recovery, MFA, and outbound email.
 - Custom categories, category deletion, soft deletion, restore, audit history, and bulk category reassignment.
-- PostgreSQL support beyond keeping it a future option.
 
 ## Further Notes
 
