@@ -1,20 +1,18 @@
 package com.exptrack.expense.service;
 
-import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.Base64;
 import java.util.Comparator;
-import java.util.Currency;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import com.exptrack.category.service.CategoryService;
+import com.exptrack.currency.service.CurrencyService;
 import com.exptrack.expense.dto.DashboardCategoryResponse;
 import com.exptrack.expense.dto.DashboardCurrencyResponse;
 import com.exptrack.expense.dto.DashboardResponse;
@@ -40,11 +38,14 @@ public class ExpenseService {
 	private final ExpenseRepository expenses;
 	private final UserAccountRepository users;
 	private final CategoryService categories;
+	private final CurrencyService currencies;
 
-	public ExpenseService(ExpenseRepository expenses, UserAccountRepository users, CategoryService categories) {
+	public ExpenseService(ExpenseRepository expenses, UserAccountRepository users, CategoryService categories,
+			CurrencyService currencies) {
 		this.expenses = expenses;
 		this.users = users;
 		this.categories = categories;
+		this.currencies = currencies;
 	}
 
 	public ExpenseResponse create(ExpenseRequest request, String email) {
@@ -79,9 +80,9 @@ public class ExpenseService {
 			totalsByCurrency.computeIfAbsent(amount.getCurrency(), ignored -> new LinkedHashMap<>())
 				.merge(amount.getCategoryId(), BigInteger.valueOf(amount.getAmountMinor()), BigInteger::add);
 		}
-		List<DashboardCurrencyResponse> currencies = totalsByCurrency.entrySet().stream().map(this::currencyResponse).toList();
+		List<DashboardCurrencyResponse> currencyBreakdown = totalsByCurrency.entrySet().stream().map(this::currencyResponse).toList();
 		List<ExpenseResponse> recentExpenses = expenses.findTop5ByUserIdOrderByExpenseDateDescIdDesc(user.getId()).stream().map(this::response).toList();
-		return new DashboardResponse(month.toString(), currencies, recentExpenses);
+		return new DashboardResponse(month.toString(), currencyBreakdown, recentExpenses);
 	}
 
 	@Transactional
@@ -102,7 +103,7 @@ public class ExpenseService {
 		}
 		return new ExpenseDetails(
 				request.title().trim(),
-				amountMinor(request.amount(), currency),
+				currencies.minorUnits(request.amount(), currency),
 				request.categoryId(),
 				request.date(),
 				currency,
@@ -114,11 +115,7 @@ public class ExpenseService {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Category is invalid");
 		}
 		if (currencyCode != null) {
-			try {
-				Currency.getInstance(currencyCode);
-			} catch (IllegalArgumentException exception) {
-				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Currency is invalid");
-			}
+			currencies.validate(currencyCode);
 		}
 		if (from != null && to != null && from.isAfter(to)) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Date range is invalid");
@@ -164,20 +161,6 @@ public class ExpenseService {
 	private UserAccount currentUser(String email) {
 		return users.findByEmailIgnoreCase(email)
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
-	}
-
-	private long amountMinor(String value, String currencyCode) {
-		try {
-			Currency currency = Currency.getInstance(currencyCode);
-			int fractionDigits = currency.getDefaultFractionDigits();
-			BigDecimal amount = new BigDecimal(value.trim());
-			if (fractionDigits < 0 || amount.signum() <= 0 || !value.trim().matches("\\d+(?:\\.\\d+)?")) {
-				throw new ArithmeticException();
-			}
-			return amount.setScale(fractionDigits, RoundingMode.UNNECESSARY).movePointRight(fractionDigits).longValueExact();
-		} catch (IllegalArgumentException | ArithmeticException exception) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Amount is invalid");
-		}
 	}
 
 	private String optionalText(String value) {
