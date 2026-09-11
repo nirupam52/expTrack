@@ -10,12 +10,10 @@ services:
       - "-Dspring-boot.run.jvmArguments=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
     environment:
       EXPTRACK_SESSION_COOKIE_SECURE: "false"
-      EXPTRACK_DATABASE_PATH: /data/exptrack.db
     ports:
       - "127.0.0.1:5005:5005"
     volumes:
       - ./backend:/app
-      - debug-expense-data:/data
       - maven-cache:/root/.m2
     develop:
       watch:
@@ -24,6 +22,10 @@ services:
           target: /app/src
         - action: rebuild
           path: ./backend/pom.xml
+
+  postgres:
+    ports:
+      - "127.0.0.1:5432:5432"
 
   frontend:
     image: exptrack-frontend-debug
@@ -41,6 +43,5 @@ services:
       - frontend-node-modules:/app/node_modules
 
 volumes:
-  debug-expense-data:
   frontend-node-modules:
   maven-cache:
