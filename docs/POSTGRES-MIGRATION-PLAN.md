@@ -46,7 +46,7 @@ Update this list only after the matching acceptance gate passes:
 
 - [x] Checkpoint 0 - Freeze current behavior
 - [x] Checkpoint 1 - Switch backend persistence to PostgreSQL
-- [ ] Checkpoint 2 - Switch Docker Compose and the runtime image
+- [x] Checkpoint 2 - Switch Docker Compose and the runtime image
 - [ ] Checkpoint 3 - Make CI prove PostgreSQL parity
 - [ ] Checkpoint 4 - Update documentation and remove stale references
 
@@ -498,3 +498,10 @@ An agent must not mark a checkpoint as complete when its acceptance gate is miss
 - Verification: `cd backend && rm -rf target && mvn -B clean verify` run independently by the orchestrator (not just the subagent's claim). Result: `BUILD SUCCESS`, `Tests run: 22, Failures: 0, Errors: 0, Skipped: 0`, confirmed against real PostgreSQL 16.15 via Testcontainers with Flyway log lines `Database: jdbc:postgresql://localhost:<port>/test (PostgreSQL 16.15)` and `Successfully validated 4 migrations`. `grep -riE 'sqlite|xerial|expenses_search|rowid|COLLATE NOCASE|AUTOINCREMENT'` under `backend/` returns no matches (only the unrelated new index name `idx_expenses_search`).
 - Result: PASS
 - Follow-up: none. Checkpoint 2 (Docker Compose + runtime image) can reuse the `postgres:16-alpine` tag already pinned in the Testcontainers base class.
+
+### 2026-09-10 - Checkpoint 2
+- Agent: Main session (stacked branch postgres-migration-checkpoint-2 off postgres-migration-checkpoint-1)
+- Changes: Switched Docker Compose and the runtime image to PostgreSQL. `compose.yaml`: added a `postgres` service (`postgres:16-alpine`, `POSTGRES_DB`/`POSTGRES_USER`/`POSTGRES_PASSWORD` from `EXPTRACK_DATABASE_NAME`/`EXPTRACK_DATABASE_USERNAME`/`EXPTRACK_DATABASE_PASSWORD` with local defaults, `pg_isready` health check, `postgres-data` volume, no published ports); `app` now depends on `postgres` health, receives `EXPTRACK_DATABASE_URL`/`USERNAME`/`PASSWORD` pointed at the `postgres` service name, and no longer mounts `/data`; removed the `expense-data` volume. `compose.debug.yaml`: removed `EXPTRACK_DATABASE_PATH` and the `debug-expense-data` volume from the debug `app` service (it now inherits the Postgres datasource env from the base file merge) and added a `postgres` port override (`127.0.0.1:5432`) for local inspection. `Dockerfile`: removed `/data` creation/ownership, the SQLite volume comment, `ENV EXPTRACK_DATABASE_PATH`, and `VOLUME /data` from the runtime stage; kept the non-root user and read-only/hardened runtime.
+- Verification: `docker compose down --volumes --remove-orphans` then `docker compose up --build --wait --wait-timeout 180` reached healthy for both `postgres` and `app`. `docker compose config` and `docker compose -f compose.yaml -f compose.debug.yaml config` confirmed the Postgres service and env vars merge correctly. Re-ran the container-hardening checks from `.github/workflows/ci.yml` (uid/gid 10001, read-only rootfs, empty `CapEff`, `NoNewPrivs=1`): all passed. `curl http://127.0.0.1:8080/actuator/health` returned `{"status":"UP"}`. Exercised the full REST workflow against the running stack: register, login, create two expenses in different categories, title search, note search, category filter, dashboard aggregation, update, delete, and a second user confirming ownership isolation (empty result set for another owner's data) — all returned the expected status codes and bodies. `cd backend && mvn -B clean verify` still exits 0 against Testcontainers Postgres.
+- Result: PASS
+- Follow-up: Checkpoint 3 should confirm `.github/workflows/ci.yml`'s `container` job now passes end-to-end once this branch reaches a PR based on `main` (the job could not be exercised via GitHub Actions directly from this stacked branch, since `pull_request` triggers are scoped to `branches: [main]`; local Compose verification above stands in for it). Checkpoint 4 should still remove the `EXPTRACK_DATABASE_PATH`/SQLite comment text search hits and update README/spec references.
