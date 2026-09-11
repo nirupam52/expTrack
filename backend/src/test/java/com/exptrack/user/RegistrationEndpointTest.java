@@ -9,9 +9,8 @@ import java.util.Map;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.exptrack.AbstractEndpointTest;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpStatus;
@@ -21,16 +20,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest(
 		webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
 		properties = {"spring.datasource.url=jdbc:sqlite::memory:", "server.servlet.session.cookie.secure=false", "exptrack.auth.max-attempts=100"})
-class RegistrationEndpointTest {
+class RegistrationEndpointTest extends AbstractEndpointTest {
 
 	@LocalServerPort
 	private int port;
 
 	private HttpClient browser = newBrowser();
 	private final ObjectMapper json = new ObjectMapper();
-	@Autowired
-	private JdbcTemplate jdbc;
-
 
 	@Test
 	void visitorCanRegisterAnAccountWithValidDetails() throws Exception {
@@ -41,8 +37,24 @@ class RegistrationEndpointTest {
 		assertThat(register("ava@", "correct-horse-battery-staple", "USD").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 		assertThat(register("cam@example.com", "short", "USD").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 		assertThat(register("cam@example.com", "            ", "USD").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+		assertThat(register("eli@example.com", "a".repeat(14), "USD").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+		assertThat(register("fay@example.com", "a".repeat(65), "USD").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 		assertThat(register("cam@example.com", "correct-horse-battery-staple", "").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
 		assertThat(register("dan@example.com", "correct-horse-battery-staple", "invalid").statusCode()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+	}
+
+	@Test
+	void mixedCaseEmailRegistrationRemainsCaseInsensitive() throws Exception {
+		assertThat(register("MiXeD@Example.com", "correct-horse-battery-staple", "USD").statusCode())
+				.isEqualTo(HttpStatus.CREATED.value());
+		browser = newBrowser();
+		HttpResponse<Void> signIn = signIn("mixed@example.com", "correct-horse-battery-staple");
+		HttpResponse<String> session = browser.send(HttpRequest.newBuilder(URI.create(url("/api/auth/session")))
+				.GET().build(), HttpResponse.BodyHandlers.ofString());
+
+		assertThat(signIn.statusCode()).isEqualTo(HttpStatus.NO_CONTENT.value());
+		assertThat(session.statusCode()).isEqualTo(HttpStatus.OK.value());
+		assertThat(json.readTree(session.body()).get("email").asText()).isEqualTo("mixed@example.com");
 	}
 
 	@Test

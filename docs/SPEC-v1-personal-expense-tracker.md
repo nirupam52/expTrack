@@ -28,9 +28,13 @@ Deliver a mobile-friendly personal expense tracker. Visitors can create an accou
 16. As a user, I want the dashboard to show my current-month total, so that I can understand recent spending at a glance.
 17. As a user, I want a current-month category breakdown, so that I can see where my money is going.
 18. As a user, I want to see recent expenses on the dashboard, so that I can orient myself after signing in.
-19. As a user, I want a default-currency change to affect only new expenses, so that historical totals remain accurate.
+19. As a user, I want a saved default-currency change to affect only future expense forms, so that historical and open expense details remain accurate.
 20. As a user, I want every expense amount to retain its recorded currency, so that later preference changes do not rewrite history.
-21. As a deployment operator, I want independent user accounts, so that several people can use the same deployment without seeing one another's data.
+21. As a user, I want an Account page that shows my email address, account creation date when available, and default currency, so that I can review my account quickly.
+22. As a user, I want to change my default currency from the Account page, so that new expense forms use my preferred currency.
+23. As a user, I want to change my password after confirming my current password and new password, so that I can secure my account.
+24. As a user, I want every session to end after my password changes, so that a stolen or shared session cannot retain access.
+25. As a deployment operator, I want independent user accounts, so that several people can use the same deployment without seeing one another's data.
 
 ## Implementation Decisions
 
@@ -40,6 +44,10 @@ Deliver a mobile-friendly personal expense tracker. Visitors can create an accou
 - Model expenses as user-owned records containing title, a positive exact amount stored as integer minor units, category, date, recorded currency, and optional short note. The owner is immutable. Validate entered currency precision and never silently round an amount.
 - Define a fixed backend category taxonomy: Dining, Education, Entertainment, Fuel, Gifts & Donations, Groceries, Healthcare, Housing, Insurance, Other, Personal Care, Shopping, Subscriptions, Transportation, Travel, and Utilities.
 - Store the user's default currency separately from each expense. A setting change supplies the currency for future entries only; it never rewrites historical records.
+- Store an immutable creation timestamp for new accounts. Historical accounts without a known creation time show that the value is unavailable; never invent it.
+- Provide a profile button in the header that opens Account settings and sign out. Account settings opens a separate authenticated Account page. It shows account information, separately saves the default currency, and handles password change.
+- Validate new passwords with a minimum length of 15 characters and a maximum of 64 characters, accept Unicode, and impose neither composition rules nor periodic changes. Keep this validation in one focused module. Common-password and breach blocklist validation is deferred.
+- Require the current password and a matching new-password confirmation before changing a password. Invalidate all active sessions after success and take the user to sign in with a success message.
 - Provide fixed category retrieval and personal expense CRUD, focused list retrieval with text, date-range, and category filters, and a current-month dashboard summary.
 - Treat the REST API as the single primary test seam: the browser client consumes it, and backend HTTP tests validate authentication, ownership, validation, mutations, filtering, and dashboard responses through it.
 - Maintain responsive, mobile-first interactions with small payloads, pagination for expense lists, owner-scoped queries, and database indexes supporting owner, date, category, title, and note retrieval.
@@ -54,6 +62,8 @@ Deliver a mobile-friendly personal expense tracker. Visitors can create an accou
 - Cover expense create/edit/permanent delete behavior, including the UI confirmation before deletion where browser-level tests exist.
 - Cover filtering and search via the list endpoint, plus current-month totals, category breakdown, and recent expenses via the dashboard endpoint.
 - Use the existing HTTP health-endpoint test as the test-style precedent; add focused endpoint tests rather than a framework of unit-test doubles.
+- Cover Account page retrieval, default-currency update behavior, account-creation-date availability, and sign out from the Account page.
+- Cover password change: current-password rejection, matching confirmation, 15–64-character Unicode validation, changed-password sign-in, old-password rejection, and invalidation of every active session.
 
 ## Out of Scope
 

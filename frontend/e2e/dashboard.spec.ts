@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 const categories = [{ id: 1, name: 'Groceries' }, { id: 2, name: 'Transport' }];
-const session = { email: 'test@example.com', defaultCurrency: 'USD' };
+const session = { email: 'test@example.com', defaultCurrency: 'USD', createdAt: '2026-01-15T10:30:00Z' };
 const dashboard = {
 	month: '2026-08',
 	currencies: [{ currency: 'USD', totalMinor: '4250', categories: [{ categoryId: 1, amountMinor: '3000' }, { categoryId: 2, amountMinor: '1250' }] }],

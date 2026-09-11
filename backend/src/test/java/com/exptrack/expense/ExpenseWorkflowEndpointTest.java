@@ -11,25 +11,21 @@ import java.util.Map;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.exptrack.AbstractEndpointTest;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpStatus;
-import org.springframework.jdbc.core.JdbcTemplate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(
 		webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
 		properties = {"spring.datasource.url=jdbc:sqlite::memory:", "server.servlet.session.cookie.secure=false", "exptrack.auth.max-attempts=100"})
-class ExpenseWorkflowEndpointTest {
+class ExpenseWorkflowEndpointTest extends AbstractEndpointTest {
 
 	@LocalServerPort
 	private int port;
-
-	@Autowired
-	private JdbcTemplate jdbc;
 
 	private final HttpClient browser = newBrowser();
 	private final ObjectMapper json = new ObjectMapper();
@@ -39,10 +35,29 @@ class ExpenseWorkflowEndpointTest {
 		registerAndSignIn(browser, "history-ava@example.com", "USD");
 		post(browser, "/api/expenses", Map.of("title", "Coffee beans", "amount", "12.34", "categoryId", 1, "date", "2026-08-06", "note", "Home"));
 		post(browser, "/api/expenses", Map.of("title", "Coffee catch-up", "amount", "4.50", "categoryId", 1, "date", "2026-08-04", "note", "With Sam"));
+		post(browser, "/api/expenses", Map.of("title", "Coffee old", "amount", "3.00", "categoryId", 1, "date", "2026-07-31", "note", "Old"));
 		post(browser, "/api/expenses", Map.of("title", "Restaurant", "amount", "20.00", "categoryId", 2, "date", "2026-08-07", "note", "Coffee dessert"));
 		HttpClient otherBrowser = newBrowser();
 		registerAndSignIn(otherBrowser, "history-bea@example.com", "USD");
 		post(otherBrowser, "/api/expenses", Map.of("title", "Coffee", "amount", "2.50", "categoryId", 1, "date", "2026-08-08", "note", "Private"));
+
+		HttpResponse<String> titleSearch = get("/api/expenses?query=beans");
+		HttpResponse<String> noteSearch = get("/api/expenses?query=dessert");
+		HttpResponse<String> punctuationSearch = get("/api/expenses?query=coffee%2C%21&from=2026-08-01&to=2026-08-31");
+		HttpResponse<String> emptySearch = get("/api/expenses?query=does-not-exist");
+
+		assertThat(titleSearch.statusCode()).isEqualTo(HttpStatus.OK.value());
+		assertThat(json.readTree(titleSearch.body()).get("items")).extracting(node -> node.get("title").asText())
+				.containsExactly("Coffee beans");
+		assertThat(noteSearch.statusCode()).isEqualTo(HttpStatus.OK.value());
+		assertThat(json.readTree(noteSearch.body()).get("items")).extracting(node -> node.get("title").asText())
+				.containsExactly("Restaurant");
+		assertThat(punctuationSearch.statusCode()).isEqualTo(HttpStatus.OK.value());
+		assertThat(json.readTree(punctuationSearch.body()).get("items")).extracting(node -> node.get("title").asText())
+				.containsExactly("Restaurant", "Coffee beans", "Coffee catch-up");
+		assertThat(emptySearch.statusCode()).isEqualTo(HttpStatus.OK.value());
+		assertThat(json.readTree(emptySearch.body()).get("items")).isEmpty();
+
 
 		HttpResponse<String> first = get("/api/expenses?query=coffee&categoryId=1&from=2026-08-01&to=2026-08-31&limit=1");
 		JsonNode firstPage = json.readTree(first.body());
@@ -54,6 +69,25 @@ class ExpenseWorkflowEndpointTest {
 		assertThat(firstPage.get("items").get(0).get("title").asText()).isEqualTo("Coffee beans");
 		assertThat(firstPage.get("nextCursor").isTextual()).isTrue();
 		assertThat(secondPage.get("items").get(0).get("title").asText()).isEqualTo("Coffee catch-up");
+		assertThat(secondPage.get("nextCursor").isNull()).isTrue();
+	}
+
+	@Test
+	void historyCursorPaginatesExpensesSharingADate() throws Exception {
+		registerAndSignIn(browser, "history-same-date@example.com", "USD");
+		post(browser, "/api/expenses", Map.of("title", "Earlier same day", "amount", "1.00", "categoryId", 1, "date", "2026-08-04"));
+		post(browser, "/api/expenses", Map.of("title", "Later same day", "amount", "2.00", "categoryId", 1, "date", "2026-08-04"));
+
+		HttpResponse<String> first = get("/api/expenses?limit=1");
+		JsonNode firstPage = json.readTree(first.body());
+		HttpResponse<String> second = get("/api/expenses?limit=1&cursor=" + firstPage.get("nextCursor").asText());
+		JsonNode secondPage = json.readTree(second.body());
+
+		assertThat(first.statusCode()).isEqualTo(HttpStatus.OK.value());
+		assertThat(firstPage.get("items").get(0).get("title").asText()).isEqualTo("Later same day");
+		assertThat(firstPage.get("nextCursor").isTextual()).isTrue();
+		assertThat(second.statusCode()).isEqualTo(HttpStatus.OK.value());
+		assertThat(secondPage.get("items").get(0).get("title").asText()).isEqualTo("Earlier same day");
 		assertThat(secondPage.get("nextCursor").isNull()).isTrue();
 	}
 

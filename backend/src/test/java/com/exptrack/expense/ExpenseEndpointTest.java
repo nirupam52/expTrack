@@ -11,9 +11,8 @@ import java.util.Map;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.exptrack.AbstractEndpointTest;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpStatus;
@@ -23,16 +22,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest(
 		webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
 		properties = {"spring.datasource.url=jdbc:sqlite::memory:", "server.servlet.session.cookie.secure=false", "exptrack.auth.max-attempts=100"})
-class ExpenseEndpointTest {
+class ExpenseEndpointTest extends AbstractEndpointTest {
 
 	@LocalServerPort
 	private int port;
 
 	private final HttpClient browser = newBrowser();
 	private final ObjectMapper json = new ObjectMapper();
-
-	@Autowired
-	private JdbcTemplate jdbc;
 
 	@Test
 	void dashboardGroupsCurrentMonthTotalsByRecordedCurrencyAndReturnsTheLatestFiveExpenses() throws Exception {
@@ -102,7 +98,7 @@ class ExpenseEndpointTest {
 	@Test
 	void signedInUserCanAddAnExactExpenseAndSeeOnlyTheirRecentExpenses() throws Exception {
 		registerAndSignIn("expense-ava@example.com", "USD");
-		HttpResponse<String> created = create(Map.of("title", "Coffee", "amount", "92233720368547758.07", "categoryId", 1, "date", "2026-08-04", "note", "With Sam"));
+		HttpResponse<String> created = create(Map.of("title", "Coffee", "amount", "92233720368547758.07", "categoryId", 1, "date", "2026-08-04", "note", "With Sam", "currency", "EUR"));
 		HttpResponse<String> recent = browser.send(HttpRequest.newBuilder(URI.create(url("/api/expenses"))).GET().build(), HttpResponse.BodyHandlers.ofString());
 		HttpClient otherBrowser = newBrowser();
 		registerAndSignIn(otherBrowser, "expense-bea@example.com", "USD");
@@ -110,12 +106,13 @@ class ExpenseEndpointTest {
 
 		assertThat(created.statusCode()).isEqualTo(HttpStatus.CREATED.value());
 		JsonNode createdExpense = json.readTree(created.body());
+		int createdId = createdExpense.get("id").asInt();
 		assertThat(createdExpense.get("amountMinor").isTextual()).isTrue();
 		assertThat(createdExpense.get("amountMinor").asText()).isEqualTo("9223372036854775807");
 		assertThat(createdExpense.get("categoryId").asInt()).isEqualTo(1);
-		assertThat(createdExpense.get("currency").asText()).isEqualTo("USD");
-		assertThat(jdbc.queryForObject("SELECT category_id FROM expenses WHERE title = ?", Integer.class, "Coffee")).isEqualTo(1);
-		assertThat(jdbc.queryForObject("SELECT currency FROM expenses WHERE title = ?", String.class, "Coffee")).isEqualTo("USD");
+		assertThat(createdExpense.get("currency").asText()).isEqualTo("EUR");
+		assertThat(jdbc.queryForObject("SELECT category_id FROM expenses WHERE id = ?", Integer.class, createdId)).isEqualTo(1);
+		assertThat(jdbc.queryForObject("SELECT currency FROM expenses WHERE id = ?", String.class, createdId)).isEqualTo("EUR");
 		assertThat(recent.statusCode()).isEqualTo(HttpStatus.OK.value());
 		assertThat(json.readTree(recent.body()).get("items").get(0).get("title").asText()).isEqualTo("Coffee");
 		assertThat(json.readTree(otherRecent.body()).get("items")).isEmpty();

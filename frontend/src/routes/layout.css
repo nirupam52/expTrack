@@ -24,8 +24,8 @@ body { margin: 0; background: #101716; color: var(--color-text); font-family: Ar
 .app header { border-bottom: 1px solid var(--color-divider); padding-bottom: 1rem; }
 .app .account-actions { align-items: flex-end; display: flex; flex-direction: column; gap: .25rem; }
 .app .brand { color: inherit; font-size: 1.25rem; font-weight: 800; letter-spacing: -.05em; text-decoration: none; }
-.app .auth, .app .ledger, .app .history { margin-top: 2rem; }
-.app .auth { max-width: 30rem; }
+.app .auth, .app .ledger, .app .history, .app .account { margin-top: 2rem; }
+.app .account, .app .auth { max-width: 30rem; }
 .app .eyebrow { color: var(--color-accent); font-size: .73rem; font-weight: 800; letter-spacing: .12em; margin: 0 0 .45rem; text-transform: uppercase; }
 .app h1, .app h2, .app p { margin-top: 0; }
 .app h1 { font-size: clamp(2.25rem, 10vw, 4rem); letter-spacing: -.06em; line-height: .94; margin-bottom: 1rem; }
@@ -43,6 +43,17 @@ body { margin: 0; background: #101716; color: var(--color-text); font-family: Ar
 .app .form-actions, .app .filter-actions, .app .dialog-actions, .app .expense-actions { align-items: center; display: flex; gap: .75rem; }
 .app .switch { margin-top: 1rem; }
 .app .error { color: #ffaca3; font-size: .9rem; margin: 0; }
+.app .notice { color: var(--color-accent); font-weight: 700; margin: 0; }
+.app .status-note { color: var(--color-accent); font-weight: 700; margin: 0; }
+.app .account-facts { display: grid; gap: .75rem; margin: 1.5rem 0 0; }
+.app .account-facts div { border-bottom: 1px solid var(--color-divider); padding-bottom: .75rem; }
+.app .account-facts dt { color: var(--color-label); font-size: .88rem; font-weight: 700; }
+.app .account-facts dd { margin: .2rem 0 0; overflow-wrap: anywhere; }
+.app .account form + form { border-top: 1px solid var(--color-divider); margin-top: 2.25rem; padding-top: 2.25rem; }
+.app .profile-menu-wrap { position: relative; }
+.app .profile-menu { background: var(--color-surface-raised); border: 1px solid var(--color-border-strong); border-radius: .4rem; box-shadow: 0 .5rem 2rem rgb(0 0 0 / .35); display: grid; min-width: 11rem; padding: .25rem; position: absolute; right: 0; top: calc(100% + .25rem); z-index: 4; }
+.app .profile-menu button { background: none; border: 0; color: var(--color-text); cursor: pointer; font-weight: 700; min-height: 2.75rem; padding: .45rem .75rem; text-align: left; }
+.app .profile-menu button:hover, .app .profile-menu button:focus-visible { background: var(--color-surface); outline: none; }
 .app .history { padding-top: 1.5rem; }
 .app .history-filters { display: grid; gap: .85rem; margin-top: 1.25rem; }
 .app .filter-pair { display: grid; gap: .85rem; }

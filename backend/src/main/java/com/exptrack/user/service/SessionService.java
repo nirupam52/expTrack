@@ -17,7 +17,7 @@ public class SessionService {
 
 	public SessionResponse current(String email) {
 		return users.findByEmailIgnoreCase(email)
-				.map(user -> new SessionResponse(user.getEmail(), user.getDefaultCurrency()))
+				.map(user -> new SessionResponse(user.getEmail(), user.getDefaultCurrency(), user.getCreatedAt()))
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
 	}
 }
