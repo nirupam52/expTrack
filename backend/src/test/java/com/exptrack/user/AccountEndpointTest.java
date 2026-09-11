@@ -9,6 +9,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
 
+import com.exptrack.AbstractEndpointTest;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -24,8 +25,8 @@ import static org.assertj.core.api.Assertions.within;
 
 @SpringBootTest(
 		webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-		properties = {"spring.datasource.url=jdbc:sqlite::memory:", "server.servlet.session.cookie.secure=false", "exptrack.auth.max-attempts=100"})
-class AccountEndpointTest {
+		properties = {"server.servlet.session.cookie.secure=false", "exptrack.auth.max-attempts=100"})
+class AccountEndpointTest extends AbstractEndpointTest {
 
 	private static final String PASSWORD = "correct-horse-battery-staple";
 
