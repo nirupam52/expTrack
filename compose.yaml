@@ -1,4 +1,18 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${EXPTRACK_DATABASE_NAME:-exptrack}
+      POSTGRES_USER: ${EXPTRACK_DATABASE_USERNAME:-exptrack}
+      POSTGRES_PASSWORD: ${EXPTRACK_DATABASE_PASSWORD:-exptrack}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${EXPTRACK_DATABASE_USERNAME:-exptrack} -d ${EXPTRACK_DATABASE_NAME:-exptrack}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
   app:
     build: .
     read_only: true
@@ -8,6 +22,13 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      EXPTRACK_DATABASE_URL: jdbc:postgresql://postgres:5432/${EXPTRACK_DATABASE_NAME:-exptrack}
+      EXPTRACK_DATABASE_USERNAME: ${EXPTRACK_DATABASE_USERNAME:-exptrack}
+      EXPTRACK_DATABASE_PASSWORD: ${EXPTRACK_DATABASE_PASSWORD:-exptrack}
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/actuator/health"]
       interval: 30s
@@ -16,8 +37,6 @@ services:
       start_period: 30s
     ports:
       - "127.0.0.1:8080:8080"
-    volumes:
-      - expense-data:/data
 
 volumes:
-  expense-data:
+  postgres-data:
