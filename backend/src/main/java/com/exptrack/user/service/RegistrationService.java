@@ -1,8 +1,8 @@
 package com.exptrack.user.service;
 
-import java.util.Currency;
 import java.util.Locale;
 
+import com.exptrack.currency.service.CurrencyService;
 import com.exptrack.user.dto.RegistrationRequest;
 import com.exptrack.user.entity.UserAccount;
 import com.exptrack.user.repository.UserAccountRepository;
@@ -18,16 +18,18 @@ public class RegistrationService {
 
 	private final UserAccountRepository users;
 	private final PasswordEncoder passwordEncoder;
+	private final CurrencyService currencies;
 
-	public RegistrationService(UserAccountRepository users, PasswordEncoder passwordEncoder) {
+	public RegistrationService(UserAccountRepository users, PasswordEncoder passwordEncoder, CurrencyService currencies) {
 		this.users = users;
 		this.passwordEncoder = passwordEncoder;
+		this.currencies = currencies;
 	}
 
 	@Transactional
 	public void register(RegistrationRequest request) {
 		String email = normalizeEmail(request.email());
-		String currency = currency(request.defaultCurrency());
+		String currency = currencies.validate(request.defaultCurrency());
 		String password = password(request.password());
 		if (users.existsByEmailIgnoreCase(email)) {
 			return;
@@ -49,13 +51,5 @@ public class RegistrationService {
 
 	private String normalizeEmail(String email) {
 		return email.trim().toLowerCase(Locale.ROOT);
-	}
-
-	private String currency(String value) {
-		try {
-			return Currency.getInstance(value).getCurrencyCode();
-		} catch (IllegalArgumentException | NullPointerException exception) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Currency is invalid");
-		}
 	}
 }

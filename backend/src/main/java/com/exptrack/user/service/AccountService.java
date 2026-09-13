@@ -1,8 +1,8 @@
 package com.exptrack.user.service;
 
-import java.util.Currency;
 import java.util.Objects;
 
+import com.exptrack.currency.service.CurrencyService;
 import com.exptrack.user.dto.ChangePasswordRequest;
 import com.exptrack.user.dto.SessionResponse;
 import com.exptrack.user.entity.UserAccount;
@@ -23,17 +23,20 @@ public class AccountService {
 	private final UserAccountRepository users;
 	private final PasswordEncoder passwords;
 	private final SessionRegistry sessions;
+	private final CurrencyService currencies;
 
-	public AccountService(UserAccountRepository users, PasswordEncoder passwords, SessionRegistry sessions) {
+	public AccountService(UserAccountRepository users, PasswordEncoder passwords, SessionRegistry sessions,
+			CurrencyService currencies) {
 		this.users = users;
 		this.passwords = passwords;
 		this.sessions = sessions;
+		this.currencies = currencies;
 	}
 
 	@Transactional
 	public SessionResponse updateDefaultCurrency(String email, String requestedCurrency) {
 		UserAccount user = find(email);
-		user.setDefaultCurrency(currency(requestedCurrency));
+		user.setDefaultCurrency(currencies.validate(requestedCurrency));
 		return new SessionResponse(user.getEmail(), user.getDefaultCurrency(), user.getCreatedAt());
 	}
 
@@ -57,14 +60,6 @@ public class AccountService {
 	private UserAccount find(String email) {
 		return users.findByEmailIgnoreCase(email)
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
-	}
-
-	private String currency(String value) {
-		try {
-			return Currency.getInstance(value).getCurrencyCode();
-		} catch (IllegalArgumentException | NullPointerException exception) {
-			throw badRequest("Currency is invalid");
-		}
 	}
 
 	private ErrorResponseException badRequest(String detail) {
