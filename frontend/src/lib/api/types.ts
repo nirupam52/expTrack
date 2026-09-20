@@ -45,6 +45,7 @@ export const dashboardSchema = z.object({
 export type Category = z.infer<typeof categorySchema>;
 export type Session = z.infer<typeof sessionSchema>;
 export type Expense = z.infer<typeof expenseSchema>;
+export type ExpensePage = z.infer<typeof expensePageSchema>;
 export type Dashboard = z.infer<typeof dashboardSchema>;
 export type ExpenseHistoryFilters = {
 	query: string;

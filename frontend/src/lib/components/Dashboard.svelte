@@ -1,16 +1,15 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { get } from '$lib/api/client';
-	import { dashboardSchema, type Category, type Dashboard } from '$lib/api/types';
+	import type { Dashboard } from '$lib/api/types';
 	import { categoryShares } from '$lib/utils/category-shares';
+	import { ledger } from '$lib/state/ledger.svelte';
+	import { session } from '$lib/state/session.svelte';
 	import CategoryBreakdown from './dashboard/CategoryBreakdown.svelte';
 	import DashboardHeading from './dashboard/DashboardHeading.svelte';
 	import MonthTotal from './dashboard/MonthTotal.svelte';
 	import RecentExpenses from './dashboard/RecentExpenses.svelte';
 
-	let { categories, defaultCurrency, onAddExpense, onViewHistory, onViewCategory }: {
-		categories: Category[];
-		defaultCurrency: string;
+	let { onAddExpense, onViewHistory, onViewCategory }: {
 		onAddExpense: () => void;
 		onViewHistory: () => void;
 		onViewCategory: (categoryId: number, month: string, currency: string) => void;
@@ -20,7 +19,7 @@
 	let selectedCurrency = $state('');
 	let loading = $state(false);
 	let error = $state('');
-	let categoryNames = $derived(new Map(categories.map((category) => [category.id, category.name])));
+	let categoryNames = $derived(new Map(ledger.categories.map((category) => [category.id, category.name])));
 	let currency = $derived(dashboard?.currencies.find((item) => item.currency === selectedCurrency) ?? null);
 	let selectedCategoryShares = $derived.by(() => currency ? categoryRows(currency.categories) : []);
 
@@ -30,10 +29,10 @@
 		loading = true;
 		error = '';
 		try {
-			const response = await get('/api/expenses/dashboard', dashboardSchema);
+			const response = await ledger.dashboard();
 			dashboard = response;
 			if (!response.currencies.some((item) => item.currency === selectedCurrency)) {
-				selectedCurrency = response.currencies.find((item) => item.currency === defaultCurrency)?.currency ?? response.currencies[0]?.currency ?? '';
+				selectedCurrency = response.currencies.find((item) => item.currency === session.current?.defaultCurrency)?.currency ?? response.currencies[0]?.currency ?? '';
 			}
 		} catch {
 			error = 'Could not load your dashboard. Please try again.';

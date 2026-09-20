@@ -1,10 +1,8 @@
 <script lang="ts">
 	import type { AccountPasswords } from '$lib/api/types';
+	import { session } from '$lib/state/session.svelte';
 
 	let {
-		email,
-		createdAt,
-		defaultCurrency,
 		savingCurrency,
 		savingPassword,
 		currencyError,
@@ -13,9 +11,6 @@
 		onSaveCurrency,
 		onChangePassword
 	}: {
-		email: string;
-		createdAt: string | null;
-		defaultCurrency: string;
 		savingCurrency: boolean;
 		savingPassword: boolean;
 		currencyError: string;
@@ -24,6 +19,8 @@
 		onSaveCurrency: (currency: string) => Promise<boolean>;
 		onChangePassword: (passwords: AccountPasswords) => Promise<boolean>;
 	} = $props();
+
+	let account = $derived(session.current);
 
 	let currencyInput = $state('');
 	let currencyInitialized = false;
@@ -36,11 +33,11 @@
 
 	$effect.pre(() => {
 		if (currencyInitialized) return;
-		currencyInput = defaultCurrency;
+		currencyInput = account?.defaultCurrency ?? '';
 		currencyInitialized = true;
 	});
 
-	let currencyChanged = $derived(currencyInput.trim().toUpperCase() !== defaultCurrency);
+	let currencyChanged = $derived(currencyInput.trim().toUpperCase() !== account?.defaultCurrency);
 	let passwordTyped = $derived(currentPassword !== '' || newPassword !== '' || newPasswordConfirmation !== '');
 	let currencyMessage = $derived(currencyError || currencyFieldError);
 	let passwordMessage = $derived(passwordError || passwordFieldError);
@@ -91,9 +88,9 @@
 	}
 
 	function createdLabel() {
-		if (!createdAt) return 'Not available';
+		if (!account?.createdAt) return 'Not available';
 		return new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
-			.format(new Date(createdAt));
+			.format(new Date(account.createdAt));
 	}
 </script>
 
@@ -101,7 +98,7 @@
 	<p class="eyebrow">Your account</p>
 	<h1 id="account-title">Account settings</h1>
 	<dl class="account-facts">
-		<div><dt>Email</dt><dd>{email}</dd></div>
+		<div><dt>Email</dt><dd>{account?.email}</dd></div>
 		<div><dt>Created</dt><dd>{createdLabel()}</dd></div>
 	</dl>
 	<form class="form-stack" novalidate onsubmit={submitCurrency}>

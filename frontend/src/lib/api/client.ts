@@ -64,11 +64,11 @@ export function post<T>(
 	return mutate('POST', path, body, responseSchema, contentType);
 }
 
-export function put<T>(path: string, body: unknown, responseSchema: ZodType<T>) {
-	return mutate('PUT', path, body, responseSchema);
+export function put<T>(path: string, body: unknown, responseSchema: ZodType<T>): Promise<T> {
+	return mutate('PUT', path, body, responseSchema) as Promise<T>;
 }
 
-export function del(path: string) {
+export function del(path: string): Promise<void> {
 	return mutate('DELETE', path);
 }
 
