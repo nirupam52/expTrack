@@ -1,19 +1,10 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
 	import { resolve } from '$app/paths';
-	import { del, get, HttpError, post, put } from '$lib/api/client';
-	import {
-		categoriesSchema,
-		expenseSchema,
-		sessionSchema,
-		type AuthSubmission,
-		type AccountPasswords,
-		type Category,
-		type Expense,
-		type ExpenseDraft,
-		type ExpenseHistoryFilters,
-		type Session
-	} from '$lib/api/types';
+	import { HttpError } from '$lib/api/client';
+	import type { AccountPasswords, AuthSubmission, Expense, ExpenseDraft, ExpenseHistoryFilters } from '$lib/api/types';
+	import { session as sessionStore } from '$lib/state/session.svelte';
+	import { ledger } from '$lib/state/ledger.svelte';
 	import AuthForm from '$lib/components/AuthForm.svelte';
 	import AccountSettings from '$lib/components/AccountSettings.svelte';
 	import Dashboard from '$lib/components/Dashboard.svelte';
@@ -30,8 +21,8 @@
 	type View = 'dashboard' | 'add' | 'history' | 'account';
 	const emptyHistoryFilters: ExpenseHistoryFilters = { query: '', categoryId: null, currency: '', from: '', to: '' };
 
-	let session = $state<Session | null>(null);
-	let categories = $state.raw<Category[]>([]);
+	let session = $derived(sessionStore.current);
+	let categories = $derived(ledger.categories);
 	let loading = $state(true);
 	let submitting = $state(false);
 	let loadError = $state('');
@@ -66,27 +57,20 @@
 		loading = true;
 		loadError = '';
 		try {
-			session = await get('/api/auth/session', sessionSchema);
-		} catch (cause) {
-			handleSessionLoadError(cause);
-			return;
-		}
-		await loadLedger();
-		loading = false;
-	}
-
-	function handleSessionLoadError(cause: unknown) {
-		if (cause instanceof HttpError && cause.status === 401) session = null;
-		else loadError = 'Unable to load your ledger. Please try again.';
-		loading = false;
-	}
-
-	async function loadLedger() {
-		try {
-			categories = await get('/api/categories', categoriesSchema);
+			await sessionStore.load();
 		} catch {
 			loadError = 'Unable to load your ledger. Please try again.';
+			loading = false;
+			return;
 		}
+		if (sessionStore.current) {
+			try {
+				await ledger.loadCategories();
+			} catch {
+				loadError = 'Unable to load your ledger. Please try again.';
+			}
+		}
+		loading = false;
 	}
 
 	async function authenticate({ mode, email, password, defaultCurrency }: AuthSubmission) {
@@ -94,10 +78,7 @@
 		authNotice = '';
 		submitting = true;
 		try {
-			if (mode === 'register') {
-				await post('/api/auth/register', { email, password, defaultCurrency: defaultCurrency.trim().toUpperCase() });
-			}
-			await post('/api/auth/login', new URLSearchParams({ username: email, password }), 'application/x-www-form-urlencoded');
+			await sessionStore.authenticate({ mode, email, password, defaultCurrency });
 			await loadSession();
 		} catch {
 			error = mode === 'register' ? 'Check the account details and try again.' : 'Email or password is incorrect.';
@@ -110,7 +91,7 @@
 		error = '';
 		submitting = true;
 		try {
-			await post('/api/expenses', draft, expenseSchema);
+			await ledger.add(draft);
 			expenseVersion += 1;
 			formDirty = false;
 			return true;
@@ -127,7 +108,7 @@
 		error = '';
 		submitting = true;
 		try {
-			await put(`/api/expenses/${editing.id}`, draft, expenseSchema);
+			await ledger.update(editing.id, draft);
 			expenseVersion += 1;
 			formDirty = false;
 			return true;
@@ -141,7 +122,7 @@
 
 	async function deleteExpense(expense: Expense) {
 		try {
-			await del(`/api/expenses/${expense.id}`);
+			await ledger.remove(expense.id);
 			if (editing?.id === expense.id) {
 				editing = null;
 				error = '';
@@ -155,8 +136,12 @@
 		}
 	}
 
+	function isBadRequest(cause: unknown): cause is HttpError {
+		return cause instanceof HttpError && cause.status === 400;
+	}
+
 	function expenseError(cause: unknown, fallback: string) {
-		return cause instanceof HttpError && cause.status === 400
+		return isBadRequest(cause)
 			? `${cause.detail ? `${cause.detail}. ` : ''}Enter a title, positive amount, category, and date.`
 			: fallback;
 	}
@@ -173,8 +158,7 @@
 		if (!canLeaveForm()) return;
 		signOutError = '';
 		try {
-			await post('/api/auth/logout', null);
-			session = null;
+			await sessionStore.signOut();
 			editing = null;
 			view = 'dashboard';
 			formDirty = false;
@@ -235,12 +219,10 @@
 		currencyError = '';
 		savingCurrency = true;
 		try {
-			const updated = await put('/api/account/default-currency', { defaultCurrency: currency }, sessionSchema);
-			if (!updated) throw new Error('Default currency response is missing.');
-			session = updated;
+			await sessionStore.saveDefaultCurrency(currency);
 			return true;
 		} catch (cause) {
-			currencyError = cause instanceof HttpError && cause.status === 400 && cause.detail
+			currencyError = isBadRequest(cause) && cause.detail
 				? cause.detail
 				: 'Could not save the default currency. Please try again.';
 			return false;
@@ -253,8 +235,7 @@
 		passwordError = '';
 		savingPassword = true;
 		try {
-			await post('/api/account/password', passwords);
-			session = null;
+			await sessionStore.changePassword(passwords);
 			view = 'dashboard';
 			editing = null;
 			formDirty = false;
@@ -262,7 +243,7 @@
 			authNotice = 'Password changed. Sign in again.';
 			return true;
 		} catch (cause) {
-			passwordError = cause instanceof HttpError && cause.status === 400 && cause.detail
+			passwordError = isBadRequest(cause) && cause.detail
 				? cause.detail
 				: 'Could not change the password. Please try again.';
 			return false;
@@ -376,16 +357,16 @@
 		<AuthForm {submitting} {error} notice={authNotice} onSubmit={authenticate} onModeChange={() => error = ''} />
 	{:else}
 		{#if view === 'dashboard'}
-			<Dashboard {categories} defaultCurrency={session.defaultCurrency} onAddExpense={startAddExpense} onViewHistory={() => viewHistory()} onViewCategory={(categoryId, month, currency) => viewHistory({ categoryId, currency, from: `${month}-01`, to: monthEnd(month) })} />
+			<Dashboard onAddExpense={startAddExpense} onViewHistory={() => viewHistory()} onViewCategory={(categoryId, month, currency) => viewHistory({ categoryId, currency, from: `${month}-01`, to: monthEnd(month) })} />
 		{:else if view === 'add'}
 			<section class="ledger" aria-labelledby="add-expense-title">
 				<div class="heading"><div><p class="eyebrow">{editing ? 'Correction' : 'Your ledger'}</p><h1 id="add-expense-title">{editing ? 'Edit expense' : 'Add an expense'}</h1></div><p>{editing?.currency ?? session.defaultCurrency}</p></div>
 				{#if editing}{#key editing.id}<ExpenseForm {categories} initial={{ title: editing.title, amount: amountForInput(editing), categoryId: editing.categoryId, date: editing.date, note: editing.note ?? '', currency: editing.currency }} {submitting} {error} submitLabel="Save changes" onCancel={() => { editing = null; error = ''; formDirty = false; view = 'history'; }} onDirty={() => formDirty = true} onSubmit={updateExpense} />{/key}{:else}<ExpenseForm {categories} initial={{ title: '', amount: '', categoryId: categories[0]?.id ?? null, date: today(), note: '', currency: session.defaultCurrency }} {submitting} {error} onDirty={() => formDirty = true} onSubmit={addExpense} />{/if}
 			</section>
 		{:else if view === 'account'}
-			<AccountSettings email={session.email} createdAt={session.createdAt} defaultCurrency={session.defaultCurrency} {savingCurrency} {savingPassword} {currencyError} {passwordError} onDirty={(dirty) => accountDirty = dirty} onSaveCurrency={saveDefaultCurrency} onChangePassword={changePassword} />
+			<AccountSettings {savingCurrency} {savingPassword} {currencyError} {passwordError} onDirty={(dirty) => accountDirty = dirty} onSaveCurrency={saveDefaultCurrency} onChangePassword={changePassword} />
 		{:else}
-			{#key historyRemount}<ExpenseHistory {categories} initialFilters={historyFilters} reloadVersion={expenseVersion} onEdit={(expense) => { editing = expense; error = ''; view = 'add'; }} onDelete={deleteExpense} onFiltersChange={(filters) => historyFilters = filters} />{/key}
+			{#key historyRemount}<ExpenseHistory initialFilters={historyFilters} reloadVersion={expenseVersion} onEdit={(expense) => { editing = expense; error = ''; view = 'add'; }} onDelete={deleteExpense} onFiltersChange={(filters) => historyFilters = filters} />{/key}
 		{/if}
 		{#if toast}<p class:toast-error={toast.kind === 'error'} class="toast" role={toast.kind === 'error' ? 'alert' : 'status'}>{toast.message}</p>{/if}
 	{/if}

@@ -1,7 +1,13 @@
+import { mergeConfig } from 'vite';
 import { defineConfig } from 'vitest/config';
 
-export default defineConfig({
-	test: {
-		include: ['src/**/*.test.ts']
-	}
-});
+import viteConfig from './vite.config';
+
+export default mergeConfig(
+	viteConfig,
+	defineConfig({
+		test: {
+			include: ['src/**/*.test.ts']
+		}
+	})
+);
